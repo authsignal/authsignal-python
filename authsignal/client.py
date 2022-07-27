@@ -8,6 +8,12 @@ _UNICODE_STRING = str
 
 API_BASE_URL = 'https://signal.authsignal.com'
 
+BLOCK = "BLOCK"
+ALLOW = "ALLOW"
+CHALLENGE_REQUIRED = "CHALLENGE_REQUIRED"
+CHALLENGE_FAILED = "CHALLENGE_FAILED"
+CHALLENGE_SUCCEEDED = "CHALLENGE_SUCCEEDED"
+
 class DecimalEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, decimal.Decimal):
@@ -44,8 +50,8 @@ class Client(object):
         self.version = version
 
     
-    def track_action(self, user_id, action_code, payload={}, path=None):
-        """Tracks an action to authsingal, scoped to the user_id and action_code
+    def track_action(self, user_id, action_code, payload=None, path=None):
+        """Tracks an action to authsignal, scoped to the user_id and action_code
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
@@ -56,9 +62,8 @@ class Client(object):
         _assert_non_empty_unicode(user_id, 'user_id')
         _assert_non_empty_unicode(action_code, 'action_code')
 
-        headers = {'Content-type': 'application/json',
-                    'Accept': '*/*',
-                    'User-Agent': self._user_agent()}
+        headers = self._default_headers()
+
         if path is None:
             path = self._track_action_url(user_id, action_code)
         params = {}
@@ -73,13 +78,13 @@ class Client(object):
                 timeout=timeout,
                 params=params)
             if response.status_code > 299:
-                raise ApiException("Track Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
+                raise ApiException("Track Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"]) 
             return response.json()
         except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path)
+            raise ApiException(str(e), path) from e
     
     def get_action(self, user_id, action_code, idempotency_key,  path=None):
-        """Retrieves the action from authsingal, scoped to the user_id and action_code
+        """Retrieves the action from authsignal, scoped to the user_id and action_code
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
@@ -89,9 +94,7 @@ class Client(object):
         _assert_non_empty_unicode(user_id, 'user_id')
         _assert_non_empty_unicode(action_code, 'action_code')
 
-        headers = {'Content-type': 'application/json',
-                    'Accept': '*/*',
-                    'User-Agent': self._user_agent()}
+        headers = self._default_headers()
         if path is None:
             path = self._get_action_url(user_id, action_code, idempotency_key)
         params = {}
@@ -108,10 +111,10 @@ class Client(object):
                 raise ApiException("Get Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
             return response.json()
         except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path)
+            raise ApiException(str(e), path) from e
 
     def get_user(self, user_id, redirect_url=None,  path=None):
-        """Retrieves the user from authsingal, and returns enrolment status, and self service url.
+        """Retrieves the user from authsignal, and returns enrolment status, and self service url.
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
@@ -119,9 +122,7 @@ class Client(object):
         """
         _assert_non_empty_unicode(user_id, 'user_id')
 
-        headers = {'Content-type': 'application/json',
-                    'Accept': '*/*',
-                    'User-Agent': self._user_agent()}
+        headers = headers = self._default_headers()
         if path is None:
             path = self._get_user_url(user_id)
         params = {}
@@ -142,7 +143,7 @@ class Client(object):
                 raise ApiException("Get User Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
             return response.json()
         except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path)
+            raise ApiException(str(e), path) from e
     
     def identify(self, user_id, user_payload,  path=None):
         """Links additional identifiers for the user
@@ -153,9 +154,8 @@ class Client(object):
         _assert_non_empty_unicode(user_id, 'user_id')
         _assert_non_empty_dict(user_payload, 'user_payload')
 
-        headers = {'Content-type': 'application/json',
-                    'Accept': '*/*',
-                    'User-Agent': self._user_agent()}
+        headers = headers = self._default_headers()
+
         if path is None:
             path = self._post_identify_url(user_id)
         params = {}
@@ -173,7 +173,7 @@ class Client(object):
                 raise ApiException("Identify Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
             return response.json()
         except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path)
+            raise ApiException(str(e), path) from e
     
     def enrol_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user
@@ -184,9 +184,8 @@ class Client(object):
         _assert_non_empty_unicode(user_id, 'user_id')
         _assert_non_empty_dict(authenticator_payload, 'authenticator_payload')
 
-        headers = {'Content-type': 'application/json',
-                    'Accept': '*/*',
-                    'User-Agent': self._user_agent()}
+        headers = self._default_headers()
+
         if path is None:
             path = self._post_enorlment_url(user_id)
         params = {}
@@ -204,25 +203,29 @@ class Client(object):
                 raise ApiException("Enrol Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
             return response.json()
         except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path)
+            raise ApiException(str(e), path) from e
 
+    def _default_headers(self):
+        return {'Content-type': 'application/json',
+                'Accept': '*/*',
+                'User-Agent': self._user_agent()}
     def _user_agent(self):
-        return 'Authsignal Python v%s' % (self.version)
+        return f'Authsignal Python v{self.version}'
 
     def _track_action_url(self, user_id, action_code):
-        return self.url + '/v1/users/%s/actions/%s' % (user_id,action_code)
+        return f'{self.url}/v1/users/{user_id}/actions/{action_code}'
     
     def _get_action_url(self, user_id, action_code, idempotency_key):
-        return self.url + '/v1/users/%s/actions/%s/%s' % (user_id, action_code, idempotency_key)
+        return f'{self.url}/v1/users/{user_id}/actions/{action_code}/{idempotency_key}'
     
     def _get_user_url(self, user_id):
-        return self.url + '/v1/users/%s' % (user_id)
+        return f'{self.url}/v1/users/{user_id}'
     
     def _post_identify_url(self, user_id):
-        return self.url + '/v1/users/%s' % (user_id)
+        return f'{self.url}/v1/users/{user_id}'
 
     def _post_enorlment_url(self, user_id):
-        return self.url + '/v1/users/%s/authenticators' % (user_id)
+        return f'{self.url}/v1/users/{user_id}/authenticators'
 
 class ApiException(Exception):
     def __init__(self, message, url, http_status_code=None, body=None, api_status=None,

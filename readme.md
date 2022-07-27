@@ -22,7 +22,7 @@ Initialize the Authsignal Python SDK, ensuring you do not hard code the Authsign
 ```python
 import authsignal.client
 
-client = authsignal.Client(api_key='<SECRET API KEY HERE>')
+authsignal_client = authsignal.Client(api_key='<SECRET API KEY HERE>')
 ```
 
 ## Usage
@@ -51,7 +51,7 @@ idempotency_key = uuid.uuid4()
 # OPTIONAL: If you're using a redirect flow, set the redirect URL, this is the url authsignal will redirect to after a Challenge is completed.
 redirect_url = "https://www.yourapp.com/back_to_your_app"
 
-response = client.track_action(
+response = authsignal_client.track_action(
     user_id="python:1",
     action_code="testPython",
     payload={
@@ -71,7 +71,7 @@ response = client.track_action(
 ```
 *Response*
 ```python
-response = client.track_action(...)
+response = authsignal_client.track_action(...)
 match response["state"]
 case "ALLOW":
     # Carry on with your operation/business logic
@@ -86,7 +86,7 @@ case "CHALLENGE_REQUIRED":
 Call get action after a challenge is completed by the user, after a redirect or a succesful browser challenge pop-up flow, and if the state of the action is `CHALLENGE_SUCCEEDED` you can proceed with completing the business logic.
 
 ```python
-response = client.get_action(
+response = authsignal_client.get_action(
     user_id="1234",
     action_code="signIn",
     idempotency_key="0ae73782-d8c1-49bc-be75-09612a3b9d1c",
@@ -102,7 +102,7 @@ if response["state"] == "CHALLENGE_SUCCEEDED":
 Get user retrieves the current enrolment state of the user, use this call to redirect users to the enrolment or management flows so that the user can do self service management of their authenticator factors. User the `url` in the response to either redirect or initiate the pop up client side flow.
 
 ```python
-response = client.get_user(user_id="1234", redirect_url="http://www.yourapp.com/path-back")
+response = authsignal_client.get_user(user_id="1234", redirect_url="http://www.yourapp.com/path-back")
 
 is_enrolled = response["isEnrolled"]
 url = response["url"]
@@ -112,12 +112,12 @@ url = response["url"]
 Get identify to link and update additional user indetifiers (like email) to the primary record.
 
 ```python
-response = client.identify(user_id="python:1", user_payload={"email": "new@email.com"})
+response = authsignal_client.identify(user_id="python:1", user_payload={"email": "new@email.com"})
 ```
 
 ### Enrol Authenticator
 If your application already has a valid authenticator like a validated phone number for your customer, you can enrol the authenticator on behalf of the user using this function
 
 ```python
-response = client.enrol_authenticator(user_id="1234", authenticator_payload={"oobChannel": "SMS", "phoneNumber": "+64277770770"})
+response = authsignal_client.enrol_authenticator(user_id="1234", authenticator_payload={"oobChannel": "SMS", "phoneNumber": "+64277770770"})
 ```

@@ -73,11 +73,11 @@ response = authsignal_client.track_action(
 ```python
 response = authsignal_client.track_action(...)
 match response["state"]
-case "ALLOW":
+case authsignal.client.ALLOW:
     # Carry on with your operation/business logic
-case "BLOCK":
+case authsignal.client.BLOCK:
     # Stop your operations
-case "CHALLENGE_REQUIRED":
+case authsignal.client.CHALLENGE_REQUIRED:
     # Step up authentication required, redirect or pass the challengeUrl to the front end
     response["challengeUrl"]
 ```

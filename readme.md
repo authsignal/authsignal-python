@@ -27,7 +27,7 @@ authsignal_client = authsignal.Client(api_key='<SECRET API KEY HERE>')
 
 ## Usage
 
-Authsignal's server side signal API has four main calls `track_action`, `get_action`, `get_user`, `identify`, `enrol_authenticator`
+Authsignal's server side signal API has four main calls `track`, `get_action`, `get_user`, `identify`, `enrol_authenticator`
 
 These examples assume that the SDK is being called from a Starlette based framework like FastAPI, adapt depending on your app server framework.
 
@@ -51,7 +51,7 @@ idempotency_key = uuid.uuid4()
 # OPTIONAL: If you're using a redirect flow, set the redirect URL, this is the url authsignal will redirect to after a Challenge is completed.
 redirect_url = "https://www.yourapp.com/back_to_your_app"
 
-response = authsignal_client.track_action(
+response = authsignal_client.track(
     user_id="python:1",
     action_code="testPython",
     payload={
@@ -71,7 +71,7 @@ response = authsignal_client.track_action(
 ```
 *Response*
 ```python
-response = authsignal_client.track_action(...)
+response = authsignal_client.track(...)
 match response["state"]
 case authsignal.client.ALLOW:
     # Carry on with your operation/business logic

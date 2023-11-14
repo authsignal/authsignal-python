@@ -50,7 +50,7 @@ class Client(object):
         self.version = version
 
     
-    def track_action(self, user_id, action_code, payload=None, path=None):
+    def track(self, user_id, action_code, payload=None, path=None):
         """Tracks an action to authsignal, scoped to the user_id and action_code
         Returns the status of the action so that you can determine to whether to continue
         Args:
@@ -65,7 +65,7 @@ class Client(object):
         headers = self._default_headers()
 
         if path is None:
-            path = self._track_action_url(user_id, action_code)
+            path = self._track_url(user_id, action_code)
         params = {}
         timeout = self.timeout
 
@@ -212,7 +212,7 @@ class Client(object):
     def _user_agent(self):
         return f'Authsignal Python v{self.version}'
 
-    def _track_action_url(self, user_id, action_code):
+    def _track_url(self, user_id, action_code):
         return f'{self.url}/v1/users/{user_id}/actions/{action_code}'
     
     def _get_action_url(self, user_id, action_code, idempotency_key):

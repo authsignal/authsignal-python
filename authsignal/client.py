@@ -175,7 +175,7 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
-    def enrol_authenticator(self, user_id, authenticator_payload,  path=None):
+    def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in event calls.

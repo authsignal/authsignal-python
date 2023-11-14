@@ -27,7 +27,7 @@ authsignal_client = authsignal.Client(api_key='<SECRET API KEY HERE>')
 
 ## Usage
 
-Authsignal's server side signal API has four main calls `track`, `get_action`, `get_user`, `identify`, `enrol_authenticator`
+Authsignal's server side signal API has four main calls `track`, `get_action`, `get_user`, `identify`, `enroll_verified_authenticator`
 
 These examples assume that the SDK is being called from a Starlette based framework like FastAPI, adapt depending on your app server framework.
 
@@ -119,5 +119,5 @@ response = authsignal_client.identify(user_id="python:1", user_payload={"email":
 If your application already has a valid authenticator like a validated phone number for your customer, you can enrol the authenticator on behalf of the user using this function
 
 ```python
-response = authsignal_client.enrol_authenticator(user_id="1234", authenticator_payload={"oobChannel": "SMS", "phoneNumber": "+64277770770"})
+response = authsignal_client.enroll_verified_authenticator(user_id="1234", authenticator_payload={"oobChannel": "SMS", "phoneNumber": "+64277770770"})
 ```

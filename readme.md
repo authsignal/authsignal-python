@@ -115,7 +115,7 @@ Get identify to link and update additional user indetifiers (like email) to the 
 response = authsignal_client.identify(user_id="python:1", user_payload={"email": "new@email.com"})
 ```
 
-### Enrol Authenticator
+### Enroll Verified Authenticator
 If your application already has a valid authenticator like a validated phone number for your customer, you can enrol the authenticator on behalf of the user using this function
 
 ```python

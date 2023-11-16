@@ -67,6 +67,22 @@ class Test(unittest.TestCase):
         self.assertEqual(response["state"], "ALLOW")
         self.assertEqual(response["idempotencyKey"], "f7f6ff4c-600f-4d61-99a2-b1157fe43777")
 
+    @responses.activate
+    def test_get_action(self):
+        responses.add(responses.GET, f"{base_url}/users/1234/actions/signIn/15cac140-f639-48c5-92db-835ec8d3d144",
+                      json={"state": "ALLOW", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
+                      status=200)
+
+        response = self.authsignal_client.get_action(
+            user_id="1234",
+            action="signIn",
+            idempotency_key="15cac140-f639-48c5-92db-835ec8d3d144",
+        )
+
+        print(response)
+
+        self.assertEqual(response["state"], "ALLOW")
+        self.assertEqual(response["stateUpdatedAt"], "2022-07-25T03:19:00.316Z")
 
 if __name__ == "__main__":
     unittest.main()

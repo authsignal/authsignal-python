@@ -3,13 +3,15 @@ import responses
 
 import client
 
+base_url = "https://signal.authsignal.com"
+
 class Test(unittest.TestCase):
     def setUp(self):
         self.authsignal_client = client.Client(api_key='<SECRET API KEY HERE>')
 
     @responses.activate
     def test_get_user(self):
-        responses.add(responses.GET, "https://signal.authsignal.com/v1/users/1234",
+        responses.add(responses.GET, f"{base_url}/v1/users/1234",
                 json={"isEnrolled": False, "email": "test@gmail.com", "phoneNumber": "1234567"}, status=200)
 
         response = self.authsignal_client.get_user(user_id="1234")
@@ -17,8 +19,6 @@ class Test(unittest.TestCase):
         self.assertEqual(response["isEnrolled"], False)
         self.assertEqual(response["email"], "test@gmail.com")
         self.assertEqual(response["phoneNumber"], "1234567")
-
-
 
     @responses.activate
     def test_enroll_verified_authenticator(self):
@@ -35,7 +35,7 @@ class Test(unittest.TestCase):
         }
 
         
-        responses.add(responses.POST, 'https://signal.authsignal.com/v1/users/1234/authenticators',
+        responses.add(responses.POST, f"{base_url}/v1/users/1234/authenticators",
                       json=payload, status=200)
             
         response = self.authsignal_client.enroll_verified_authenticator(

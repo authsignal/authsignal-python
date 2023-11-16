@@ -187,7 +187,7 @@ class Client(object):
         headers = self._default_headers()
 
         if path is None:
-            path = self._post_enorlment_url(user_id)
+            path = self._post_enrollment_url(user_id)
         params = {}
         timeout = self.timeout
 
@@ -200,7 +200,7 @@ class Client(object):
                 timeout=timeout,
                 params=params)
             if response.status_code > 299:
-                raise ApiException("Enrol Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
+                raise ApiException("Enroll Verified Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
             return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
@@ -224,7 +224,7 @@ class Client(object):
     def _post_identify_url(self, user_id):
         return f'{self.url}/v1/users/{user_id}'
 
-    def _post_enorlment_url(self, user_id):
+    def _post_enrollment_url(self, user_id):
         return f'{self.url}/v1/users/{user_id}/authenticators'
 
 class ApiException(Exception):

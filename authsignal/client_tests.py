@@ -10,13 +10,15 @@ class Test(unittest.TestCase):
     @responses.activate
     def test_get_user(self):
         responses.add(responses.GET, "https://signal.authsignal.com/v1/users/1234",
-                json={"is_enrolled": False, "url": "https://www.example.com", "access_token": "xxx"}, status=200)
+                json={"isEnrolled": False, "email": "test@gmail.com", "phoneNumber": "1234567"}, status=200)
 
         response = self.authsignal_client.get_user(user_id="1234")
 
-        self.assertEqual(response["is_enrolled"], False)
-        self.assertEqual(response["url"], "https://www.example.com")
-        self.assertEqual(response["access_token"], "xxx")
+        self.assertEqual(response["isEnrolled"], False)
+        self.assertEqual(response["email"], "test@gmail.com")
+        self.assertEqual(response["phoneNumber"], "1234567")
+
+
 
     @responses.activate
     def test_enroll_verified_authenticator(self):

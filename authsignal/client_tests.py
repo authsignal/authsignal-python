@@ -3,7 +3,7 @@ import responses
 
 import client
 
-base_url = "https://signal.authsignal.com"
+base_url = "https://signal.authsignal.com/v1"
 
 class Test(unittest.TestCase):
     def setUp(self):
@@ -11,7 +11,7 @@ class Test(unittest.TestCase):
 
     @responses.activate
     def test_get_user(self):
-        responses.add(responses.GET, f"{base_url}/v1/users/1234",
+        responses.add(responses.GET, f"{base_url}/users/1234",
                 json={"isEnrolled": False, "email": "test@gmail.com", "phoneNumber": "1234567"}, status=200)
 
         response = self.authsignal_client.get_user(user_id="1234")
@@ -35,7 +35,7 @@ class Test(unittest.TestCase):
         }
 
         
-        responses.add(responses.POST, f"{base_url}/v1/users/1234/authenticators",
+        responses.add(responses.POST, f"{base_url}/users/1234/authenticators",
                       json=payload, status=200)
             
         response = self.authsignal_client.enroll_verified_authenticator(
@@ -47,6 +47,26 @@ class Test(unittest.TestCase):
 
         self.assertEqual(response["authenticator"]["userAuthenticatorId"],
                              "9b2cfd40-7df2-4658-852d-a0c3456e5a2e")
+
+    @responses.activate
+    def test_track(self):
+        responses.add(responses.POST, f"{base_url}/users/1234/actions/signIn",
+                      json={"state": "ALLOW", "idempotencyKey": "f7f6ff4c-600f-4d61-99a2-b1157fe43777", "ruleIds": []},
+                      status=200)
+
+        response = self.authsignal_client.track(
+            user_id="1234",
+            action="signIn",
+            payload={
+                "it_could_be_a_bool": True,
+                "it_could_be_a_string": "test",
+                "it_could_be_a_number": 400.00
+            }
+        )
+
+        self.assertEqual(response["state"], "ALLOW")
+        self.assertEqual(response["idempotencyKey"], "f7f6ff4c-600f-4d61-99a2-b1157fe43777")
+
 
 if __name__ == "__main__":
     unittest.main()

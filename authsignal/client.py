@@ -50,22 +50,22 @@ class Client(object):
         self.version = version
 
     
-    def track(self, user_id, action_code, payload=None, path=None):
-        """Tracks an action to authsignal, scoped to the user_id and action_code
+    def track(self, user_id, action, payload=None, path=None):
+        """Tracks an action to authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
-            action_code: The action code that you are retrieving, i.e. signIn
+            action: The action that you are retrieving, i.e. signIn
             payload(optional): The additional payload options to supply authsignal for more advance rules
         """
         _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(action_code, 'action_code')
+        _assert_non_empty_unicode(action, 'action')
 
         headers = self._default_headers()
 
         if path is None:
-            path = self._track_url(user_id, action_code)
+            path = self._track_url(user_id, action)
         params = {}
         timeout = self.timeout
 
@@ -83,20 +83,20 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
-    def get_action(self, user_id, action_code, idempotency_key,  path=None):
-        """Retrieves the action from authsignal, scoped to the user_id and action_code
+    def get_action(self, user_id, action, idempotency_key,  path=None):
+        """Retrieves the action from authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
-            action_code: The action code that you are retrieving, i.e. signIn
+            action: The action that you are retrieving, i.e. signIn
         """
         _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(action_code, 'action_code')
+        _assert_non_empty_unicode(action, 'action')
 
         headers = self._default_headers()
         if path is None:
-            path = self._get_action_url(user_id, action_code, idempotency_key)
+            path = self._get_action_url(user_id, action, idempotency_key)
         params = {}
         timeout = self.timeout
 
@@ -212,11 +212,11 @@ class Client(object):
     def _user_agent(self):
         return f'Authsignal Python v{self.version}'
 
-    def _track_url(self, user_id, action_code):
-        return f'{self.url}/v1/users/{user_id}/actions/{action_code}'
+    def _track_url(self, user_id, action):
+        return f'{self.url}/v1/users/{user_id}/actions/{action}'
     
-    def _get_action_url(self, user_id, action_code, idempotency_key):
-        return f'{self.url}/v1/users/{user_id}/actions/{action_code}/{idempotency_key}'
+    def _get_action_url(self, user_id, action, idempotency_key):
+        return f'{self.url}/v1/users/{user_id}/actions/{action}/{idempotency_key}'
     
     def _get_user_url(self, user_id):
         return f'{self.url}/v1/users/{user_id}'

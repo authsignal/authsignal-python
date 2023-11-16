@@ -53,7 +53,7 @@ redirect_url = "https://www.yourapp.com/back_to_your_app"
 
 response = authsignal_client.track(
     user_id="python:1",
-    action_code="testPython",
+    action="testPython",
     payload={
         "redirectUrl": "https://www.example.com/",
         "email": "test@python.com",
@@ -88,7 +88,7 @@ Call get action after a challenge is completed by the user, after a redirect or 
 ```python
 response = authsignal_client.get_action(
     user_id="1234",
-    action_code="signIn",
+    action="signIn",
     idempotency_key="0ae73782-d8c1-49bc-be75-09612a3b9d1c",
 )
 

@@ -8,6 +8,17 @@ class Test(unittest.TestCase):
         self.authsignal_client = client.Client(api_key='<SECRET API KEY HERE>')
 
     @responses.activate
+    def test_get_user(self):
+        responses.add(responses.GET, "https://signal.authsignal.com/v1/users/1234",
+                json={"is_enrolled": False, "url": "https://www.example.com", "access_token": "xxx"}, status=200)
+
+        response = self.authsignal_client.get_user(user_id="1234")
+
+        self.assertEqual(response["is_enrolled"], False)
+        self.assertEqual(response["url"], "https://www.example.com")
+        self.assertEqual(response["access_token"], "xxx")
+
+    @responses.activate
     def test_enroll_verified_authenticator(self):
         payload = {
             "authenticator": {

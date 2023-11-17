@@ -146,36 +146,6 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
-    def identify(self, user_id, user_payload,  path=None):
-        """Links additional identifiers for the user
-        Args:
-            user_id:  A user's id. This id should be the same as the user_id used in event calls.
-            user_payload:  A dictionary with the key/value of the identifier you want to link {'email': 'test@test.com'}
-        """
-        _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_dict(user_payload, 'user_payload')
-
-        headers = headers = self._default_headers()
-
-        if path is None:
-            path = self._post_identify_url(user_id)
-        params = {}
-        timeout = self.timeout
-
-        try:
-            response = self.session.post(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps(user_payload),
-                headers=headers,
-                timeout=timeout,
-                params=params)
-            if response.status_code > 299:
-                raise ApiException("Identify Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
-    
     def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user
         Args:
@@ -245,9 +215,6 @@ class Client(object):
         return f'{self.url}/v1/users/{user_id}/actions/{action}/{idempotency_key}'
     
     def _get_user_url(self, user_id):
-        return f'{self.url}/v1/users/{user_id}'
-    
-    def _post_identify_url(self, user_id):
         return f'{self.url}/v1/users/{user_id}'
 
     def _post_enrollment_url(self, user_id):

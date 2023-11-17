@@ -122,7 +122,7 @@ class ValidateChallenge(unittest.TestCase):
 
     @responses.activate
     def test_it_returns_success_false_if_user_id_is_incorrect(self):
-        responses.add(responses.GET, f"{base_url}users/spoofed_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
+        responses.add(responses.GET, f"{base_url}/users/spoofed_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
             json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
             status=200
         )
@@ -132,6 +132,18 @@ class ValidateChallenge(unittest.TestCase):
         self.assertIsNone(response['state'])
         self.assertFalse(response['success'])
 
+    @responses.activate
+    def test_it_returns_success_true_if_no_user_id_is_provided(self):
+        responses.add(responses.GET, f"{base_url}/users/legitimate_user_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
+            json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
+            status=200
+        )
+
+        response = self.authsignal_client.validate_challenge(token=self.jwt_token)
+
+        self.assertEqual(response["userId"], "legitimate_user_id")
+        self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
+        self.assertTrue(response["success"])
 
 if __name__ == "__main__":
     unittest.main()

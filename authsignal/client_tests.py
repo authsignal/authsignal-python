@@ -81,8 +81,6 @@ class Test(unittest.TestCase):
             idempotency_key="15cac140-f639-48c5-92db-835ec8d3d144",
         )
 
-        print(response)
-
         self.assertEqual(response["state"], "ALLOW")
         self.assertEqual(response["stateUpdatedAt"], "2022-07-25T03:19:00.316Z")
 
@@ -108,10 +106,6 @@ class ValidateChallenge(unittest.TestCase):
         }
 
         self.jwt_token = jwt.encode(self.payload, self.api_key, algorithm='HS256')
-
-        
-
-       
 
     @responses.activate
     def test_it_returns_success_if_user_id_is_correct(self):

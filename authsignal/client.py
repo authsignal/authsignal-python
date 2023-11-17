@@ -176,7 +176,7 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
-    def validate_challenge(self, user_id, token):
+    def validate_challenge(self, token, user_id=None):
         try:
             decoded_token = jwt.decode(token, self.api_key, algorithms=["HS256"])
         except jwt.DecodeError as e:
@@ -187,7 +187,7 @@ class Client(object):
         action = decoded_token["other"]["action"]
         idempotency_key = decoded_token["other"]["idempotencyKey"]
 
-        if user_id != decoded_user_id:
+        if  user_id and user_id != decoded_user_id:
             return {"userId": decoded_user_id, "success": False, "state": None}
 
         if action and idempotency_key:
@@ -199,7 +199,7 @@ class Client(object):
 
                 return {"userId": decoded_user_id, "success": success, "state": state, "action": action}
 
-        return {"userId": user_id, "success": False, "state": None}
+        return {"userId": decoded_user_id, "success": False, "state": None}
 
     def _default_headers(self):
         return {'Content-type': 'application/json',

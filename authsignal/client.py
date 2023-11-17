@@ -1,5 +1,6 @@
 import decimal
 import authsignal
+import jwt
 import authsignal.version
 
 import json
@@ -204,6 +205,31 @@ class Client(object):
             return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
+
+    def validate_challenge(self, user_id, token):
+        try:
+            decoded_token = jwt.decode(token, self.api_key, algorithms=["HS256"])
+        except jwt.DecodeError as e:
+            print(e)
+            return
+
+        decoded_user_id = decoded_token["other"]["userId"]
+        action = decoded_token["other"]["action"]
+        idempotency_key = decoded_token["other"]["idempotencyKey"]
+
+        if user_id != decoded_user_id:
+            return {"userId": decoded_user_id, "success": False, "state": None}
+
+        if action and idempotency_key:
+            action_result = self.get_action(user_id=decoded_user_id, action=action, idempotency_key=idempotency_key)
+
+            if action_result:
+                state = action_result["state"]
+                success = state == "CHALLENGE_SUCCEEDED"
+
+                return {"userId": decoded_user_id, "success": success, "state": state, "action": action}
+
+        return {"userId": user_id, "success": False, "state": None}
 
     def _default_headers(self):
         return {'Content-type': 'application/json',

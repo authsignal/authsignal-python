@@ -17,12 +17,13 @@ pip3 install git+https://github.com/authsignal/authsignal-python
 ```
 
 ## Configuration
+
 Initialize the Authsignal Python SDK, ensuring you do not hard code the Authsignal Secret Key, always keep this safe.
 
 ```python
 import authsignal.client
 
-authsignal_client = authsignal.Client(api_key='<SECRET API KEY HERE>')
+authsignal_client = authsignal.Client(api_key='SECRET')
 ```
 
 ## Usage
@@ -32,6 +33,7 @@ Authsignal's server side signal API has four main calls `track`, `get_action`, `
 These examples assume that the SDK is being called from a Starlette based framework like FastAPI, adapt depending on your app server framework.
 
 ### Track Action
+
 The track action call is the main api call to send actions to authsignal, the default decision is to `ALLOW` actions, this allows you to call track action as a means to keep an audit trail of your user activity.
 
 Add to the rules in the admin portal or the change default decision to influence the flows for your end users. If a user is not enrolled with authenticators, the default decision is to `ALLOW`.
@@ -69,7 +71,9 @@ response = authsignal_client.track(
 )
 
 ```
-*Response*
+
+_Response_
+
 ```python
 response = authsignal_client.track(...)
 match response["state"]
@@ -83,6 +87,7 @@ case authsignal.client.CHALLENGE_REQUIRED:
 ```
 
 ### Get Action
+
 Call get action after a challenge is completed by the user, after a redirect or a succesful browser challenge pop-up flow, and if the state of the action is `CHALLENGE_SUCCEEDED` you can proceed with completing the business logic.
 
 ```python
@@ -99,6 +104,7 @@ if response["state"] == "CHALLENGE_SUCCEEDED":
 ```
 
 ### Get User
+
 Get user retrieves the current enrolment state of the user, use this call to redirect users to the enrolment or management flows so that the user can do self service management of their authenticator factors. User the `url` in the response to either redirect or initiate the pop up client side flow.
 
 ```python
@@ -109,6 +115,7 @@ url = response["url"]
 ```
 
 ### Identify
+
 Get identify to link and update additional user indetifiers (like email) to the primary record.
 
 ```python
@@ -116,6 +123,7 @@ response = authsignal_client.identify(user_id="python:1", user_payload={"email":
 ```
 
 ### Enroll Verified Authenticator
+
 If your application already has a valid authenticator like a validated phone number for your customer, you can enrol the authenticator on behalf of the user using this function
 
 ```python

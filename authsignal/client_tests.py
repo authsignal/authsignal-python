@@ -1,5 +1,7 @@
 import unittest
 import responses
+import jwt
+import time
 
 import client
 
@@ -7,7 +9,7 @@ base_url = "https://signal.authsignal.com/v1"
 
 class Test(unittest.TestCase):
     def setUp(self):
-        self.authsignal_client = client.Client(api_key='<SECRET API KEY HERE>')
+        self.authsignal_client = client.Client(api_key='SECRET')
 
     @responses.activate
     def test_get_user(self):
@@ -83,6 +85,59 @@ class Test(unittest.TestCase):
 
         self.assertEqual(response["state"], "ALLOW")
         self.assertEqual(response["stateUpdatedAt"], "2022-07-25T03:19:00.316Z")
+
+class ValidateChallenge(unittest.TestCase):
+    def setUp(self):
+        self.api_key='SECRET'
+
+        self.authsignal_client = client.Client(api_key=self.api_key)
+
+        self.payload = {
+            "iat": int(time.time()),
+            "sub": "legitimate_user_id",
+            "exp": int(time.time()) + 10 * 60,
+            "iss": "test",
+            "scope": "read:authenticators add:authenticators update:authenticators remove:authenticators",
+            "other": {
+                "tenantId": "555159e4-adc3-454b-82b1-b55a2783f712",
+                "publishableKey": "2fff14a6600b7a58170793109c78b876",
+                "userId": "legitimate_user_id",
+                "action": "alwaysChallenge",
+                "idempotencyKey": "a682af7d-c929-4c29-9c2a-71e69ab5c603"
+            }
+        }
+
+        self.jwt_token = jwt.encode(self.payload, self.api_key, algorithm='HS256')
+
+        
+
+       
+
+    @responses.activate
+    def test_it_returns_success_if_user_id_is_correct(self):
+        responses.add(responses.GET, f"{base_url}/users/legitimate_user_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
+            json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
+            status=200
+        )
+
+        response = self.authsignal_client.validate_challenge(user_id="legitimate_user_id", token=self.jwt_token)
+
+        self.assertEqual(response["userId"], "legitimate_user_id")
+        self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
+        self.assertTrue(response["success"])
+
+    @responses.activate
+    def test_it_returns_success_false_if_user_id_is_incorrect(self):
+        responses.add(responses.GET, f"{base_url}users/spoofed_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
+            json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
+            status=200
+        )
+
+        response = self.authsignal_client.validate_challenge(user_id="spoofed_id", token=self.jwt_token)
+
+        self.assertIsNone(response['state'])
+        self.assertFalse(response['success'])
+
 
 if __name__ == "__main__":
     unittest.main()

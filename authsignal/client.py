@@ -3,6 +3,7 @@ import authsignal
 import jwt
 import authsignal.version
 
+import humps
 import json
 import requests
 _UNICODE_STRING = str
@@ -80,7 +81,7 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Track Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"]) 
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
@@ -110,7 +111,7 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Get Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
@@ -142,7 +143,7 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Get User Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
@@ -172,7 +173,7 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Enroll Verified Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
@@ -188,7 +189,7 @@ class Client(object):
         idempotency_key = decoded_token["other"]["idempotencyKey"]
 
         if  user_id and user_id != decoded_user_id:
-            return {"userId": decoded_user_id, "success": False, "state": None}
+            return {"user_id": decoded_user_id, "success": False, "state": None}
 
         if action and idempotency_key:
             action_result = self.get_action(user_id=decoded_user_id, action=action, idempotency_key=idempotency_key)
@@ -197,7 +198,7 @@ class Client(object):
                 state = action_result["state"]
                 success = state == "CHALLENGE_SUCCEEDED"
 
-                return {"userId": decoded_user_id, "success": success, "state": state, "action": action}
+                return {"user_id": decoded_user_id, "success": success, "state": state, "action": action}
 
         return {"userId": decoded_user_id, "success": False, "state": None}
 

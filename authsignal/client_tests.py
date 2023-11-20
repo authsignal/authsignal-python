@@ -18,9 +18,9 @@ class Test(unittest.TestCase):
 
         response = self.authsignal_client.get_user(user_id="1234")
 
-        self.assertEqual(response["isEnrolled"], False)
+        self.assertEqual(response["is_enrolled"], False)
         self.assertEqual(response["email"], "test@gmail.com")
-        self.assertEqual(response["phoneNumber"], "1234567")
+        self.assertEqual(response["phone_number"], "1234567")
 
     @responses.activate
     def test_enroll_verified_authenticator(self):
@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
                     "phone_number": "+64270000000"
                 })
 
-        self.assertEqual(response["authenticator"]["userAuthenticatorId"],
+        self.assertEqual(response["authenticator"]["user_authenticator_id"],
                              "9b2cfd40-7df2-4658-852d-a0c3456e5a2e")
 
     @responses.activate
@@ -67,7 +67,7 @@ class Test(unittest.TestCase):
         )
 
         self.assertEqual(response["state"], "ALLOW")
-        self.assertEqual(response["idempotencyKey"], "f7f6ff4c-600f-4d61-99a2-b1157fe43777")
+        self.assertEqual(response["idempotency_key"], "f7f6ff4c-600f-4d61-99a2-b1157fe43777")
 
     @responses.activate
     def test_get_action(self):
@@ -82,7 +82,7 @@ class Test(unittest.TestCase):
         )
 
         self.assertEqual(response["state"], "ALLOW")
-        self.assertEqual(response["stateUpdatedAt"], "2022-07-25T03:19:00.316Z")
+        self.assertEqual(response["state_updated_at"], "2022-07-25T03:19:00.316Z")
 
 class ValidateChallenge(unittest.TestCase):
     def setUp(self):
@@ -116,7 +116,7 @@ class ValidateChallenge(unittest.TestCase):
 
         response = self.authsignal_client.validate_challenge(user_id="legitimate_user_id", token=self.jwt_token)
 
-        self.assertEqual(response["userId"], "legitimate_user_id")
+        self.assertEqual(response["user_id"], "legitimate_user_id")
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
         self.assertTrue(response["success"])
 
@@ -141,7 +141,7 @@ class ValidateChallenge(unittest.TestCase):
 
         response = self.authsignal_client.validate_challenge(token=self.jwt_token)
 
-        self.assertEqual(response["userId"], "legitimate_user_id")
+        self.assertEqual(response["user_id"], "legitimate_user_id")
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
         self.assertTrue(response["success"])
 

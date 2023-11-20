@@ -97,6 +97,12 @@ jobs:
         --repo '${{ github.repository }}'
 
   publish-to-testpypi:
+    - name: Extract version from version.py
+      run: echo "BASE_VERSION=$(python -c 'from version import __version__; print(__version__)')" >> $GITHUB_ENV
+
+    - name: Set dynamic version
+      run: echo "VERSION=${{ env.BASE_VERSION }}.$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
     name: Publish Python 🐍 distribution 📦 to TestPyPI
     needs:
     - build

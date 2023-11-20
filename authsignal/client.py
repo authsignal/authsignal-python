@@ -1,7 +1,6 @@
 import decimal
-import authsignal
 import jwt
-import authsignal.version
+from version import VERSION
 
 import humps
 import json
@@ -29,7 +28,7 @@ class Client(object):
             api_key=None,
             api_url=API_BASE_URL,
             timeout=2.0,
-            version=authsignal.version.VERSION,
+            version=VERSION,
             session=None):
         """Initialize the client.
         Args:

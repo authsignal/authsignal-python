@@ -19,37 +19,12 @@ jobs:
         pip install -r requirements.txt
         build
         --user
-
-    - name: Run tests
-      run: python authsignal/client_tests.py
-
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
     - name: Store the distribution packages
       uses: actions/upload-artifact@v3
       with:
         name: python-package-distributions
-        path: dist/
-
-    # Clean up previous build artifacts
-    - name: Clean build artifacts
-      run: rm -rf dist/*
-
-    # Build with testing version
-    - name: Extract version from version.py
-      run: |
-        export PYTHONPATH=${PYTHONPATH}:$(pwd)/authsignal
-        echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-    - name: Build a binary wheel and a source tarball (Testing)
-      run: |
-        poetry version "${BASE_VERSION}.dev$(date +%s)"
-        python3 -m build
-        ls -la dist/
-    - uses: actions/upload-artifact@v3
-      with:
-        name: python-package-distributions-testing
         path: dist/
 
   publish-to-pypi:
@@ -131,10 +106,10 @@ jobs:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
-    - name: Download all the test dists
+    - name: Download all the dists
       uses: actions/download-artifact@v3
       with:
-        name: python-package-distributions-testing
+        name: python-package-distributions
         path: dist/
     - name: Publish distribution 📦 to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1

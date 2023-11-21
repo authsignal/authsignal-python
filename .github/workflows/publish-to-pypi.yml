@@ -37,7 +37,9 @@ jobs:
 
     # Build with testing version
     - name: Extract version from version.py
-      run: echo "BASE_VERSION=$(python -c 'from authsignal.version import VERSION; print(VERSION)')" >> $GITHUB_ENV
+      run: |
+        export PYTHONPATH=${PYTHONPATH}:$(pwd)/authsignal
+        echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
     - name: Build a binary wheel and a source tarball (Testing)
       run: |
         echo "VERSION=${{ env.BASE_VERSION }}.$(git rev-parse --short HEAD)" >> $GITHUB_ENV

@@ -37,7 +37,7 @@ jobs:
 
     # Build with testing version
     - name: Extract version from version.py
-      run: echo "BASE_VERSION=$(python -c 'from version import __version__; print(__version__)')" >> $GITHUB_ENV
+      run: echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
     - name: Build a binary wheel and a source tarball (Testing)
       run: |
         echo "VERSION=${{ env.BASE_VERSION }}.$(git rev-parse --short HEAD)" >> $GITHUB_ENV

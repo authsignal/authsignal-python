@@ -1,7 +1,8 @@
 import decimal
-import authsignal
-import authsignal.version
+import jwt
+from version import VERSION
 
+import humps
 import json
 import requests
 _UNICODE_STRING = str
@@ -27,7 +28,7 @@ class Client(object):
             api_key=None,
             api_url=API_BASE_URL,
             timeout=2.0,
-            version=authsignal.version.VERSION,
+            version=VERSION,
             session=None):
         """Initialize the client.
         Args:
@@ -50,22 +51,22 @@ class Client(object):
         self.version = version
 
     
-    def track_action(self, user_id, action_code, payload=None, path=None):
-        """Tracks an action to authsignal, scoped to the user_id and action_code
+    def track(self, user_id, action, payload=None, path=None):
+        """Tracks an action to authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
-            action_code: The action code that you are retrieving, i.e. signIn
+            action: The action that you are retrieving, i.e. signIn
             payload(optional): The additional payload options to supply authsignal for more advance rules
         """
         _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(action_code, 'action_code')
+        _assert_non_empty_unicode(action, 'action')
 
         headers = self._default_headers()
 
         if path is None:
-            path = self._track_action_url(user_id, action_code)
+            path = self._track_url(user_id, action)
         params = {}
         timeout = self.timeout
 
@@ -79,24 +80,24 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Track Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"]) 
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
-    def get_action(self, user_id, action_code, idempotency_key,  path=None):
-        """Retrieves the action from authsignal, scoped to the user_id and action_code
+    def get_action(self, user_id, action, idempotency_key,  path=None):
+        """Retrieves the action from authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
-            action_code: The action code that you are retrieving, i.e. signIn
+            action: The action that you are retrieving, i.e. signIn
         """
         _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(action_code, 'action_code')
+        _assert_non_empty_unicode(action, 'action')
 
         headers = self._default_headers()
         if path is None:
-            path = self._get_action_url(user_id, action_code, idempotency_key)
+            path = self._get_action_url(user_id, action, idempotency_key)
         params = {}
         timeout = self.timeout
 
@@ -109,7 +110,7 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Get Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
@@ -141,41 +142,11 @@ class Client(object):
                 params=params)
             if response.status_code > 299:
                 raise ApiException("Get User Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
-    def identify(self, user_id, user_payload,  path=None):
-        """Links additional identifiers for the user
-        Args:
-            user_id:  A user's id. This id should be the same as the user_id used in event calls.
-            user_payload:  A dictionary with the key/value of the identifier you want to link {'email': 'test@test.com'}
-        """
-        _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_dict(user_payload, 'user_payload')
-
-        headers = headers = self._default_headers()
-
-        if path is None:
-            path = self._post_identify_url(user_id)
-        params = {}
-        timeout = self.timeout
-
-        try:
-            response = self.session.post(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps(user_payload),
-                headers=headers,
-                timeout=timeout,
-                params=params)
-            if response.status_code > 299:
-                raise ApiException("Identify Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
-    
-    def enrol_authenticator(self, user_id, authenticator_payload,  path=None):
+    def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in event calls.
@@ -187,7 +158,7 @@ class Client(object):
         headers = self._default_headers()
 
         if path is None:
-            path = self._post_enorlment_url(user_id)
+            path = self._post_enrollment_url(user_id)
         params = {}
         timeout = self.timeout
 
@@ -200,10 +171,35 @@ class Client(object):
                 timeout=timeout,
                 params=params)
             if response.status_code > 299:
-                raise ApiException("Enrol Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
-            return response.json()
+                raise ApiException("Enroll Verified Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
+            return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
+
+    def validate_challenge(self, token, user_id=None):
+        try:
+            decoded_token = jwt.decode(token, self.api_key, algorithms=["HS256"])
+        except jwt.DecodeError as e:
+            print(e)
+            return
+
+        decoded_user_id = decoded_token["other"]["userId"]
+        action = decoded_token["other"]["action"]
+        idempotency_key = decoded_token["other"]["idempotencyKey"]
+
+        if  user_id and user_id != decoded_user_id:
+            return {"user_id": decoded_user_id, "success": False, "state": None}
+
+        if action and idempotency_key:
+            action_result = self.get_action(user_id=decoded_user_id, action=action, idempotency_key=idempotency_key)
+
+            if action_result:
+                state = action_result["state"]
+                success = state == "CHALLENGE_SUCCEEDED"
+
+                return {"user_id": decoded_user_id, "success": success, "state": state, "action": action}
+
+        return {"userId": decoded_user_id, "success": False, "state": None}
 
     def _default_headers(self):
         return {'Content-type': 'application/json',
@@ -212,19 +208,16 @@ class Client(object):
     def _user_agent(self):
         return f'Authsignal Python v{self.version}'
 
-    def _track_action_url(self, user_id, action_code):
-        return f'{self.url}/v1/users/{user_id}/actions/{action_code}'
+    def _track_url(self, user_id, action):
+        return f'{self.url}/v1/users/{user_id}/actions/{action}'
     
-    def _get_action_url(self, user_id, action_code, idempotency_key):
-        return f'{self.url}/v1/users/{user_id}/actions/{action_code}/{idempotency_key}'
+    def _get_action_url(self, user_id, action, idempotency_key):
+        return f'{self.url}/v1/users/{user_id}/actions/{action}/{idempotency_key}'
     
     def _get_user_url(self, user_id):
         return f'{self.url}/v1/users/{user_id}'
-    
-    def _post_identify_url(self, user_id):
-        return f'{self.url}/v1/users/{user_id}'
 
-    def _post_enorlment_url(self, user_id):
+    def _post_enrollment_url(self, user_id):
         return f'{self.url}/v1/users/{user_id}/authenticators'
 
 class ApiException(Exception):

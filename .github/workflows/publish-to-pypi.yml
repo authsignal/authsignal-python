@@ -44,7 +44,7 @@ jobs:
       uses: snok/install-poetry@v1
     - name: Build a binary wheel and a source tarball (Testing)
       run: |
-        poetry version "${BASE_VERSION}.dev0+$(git rev-parse --short HEAD)"
+        poetry version "${BASE_VERSION}.dev$(date +%s)"
         python3 -m build
         ls -la dist/
     - uses: actions/upload-artifact@v3

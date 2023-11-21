@@ -42,8 +42,9 @@ jobs:
         echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
     - name: Build a binary wheel and a source tarball (Testing)
       run: |
-        echo "VERSION=${{ env.BASE_VERSION }}.$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        poetry version "${BASE_VERSION}.$(git rev-parse --short HEAD)"
         python3 -m build --version ${{ env.VERSION }}
+        ls -la dist/
     - uses: actions/upload-artifact@v3
       with:
         name: python-package-distributions-testing

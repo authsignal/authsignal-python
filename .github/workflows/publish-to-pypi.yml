@@ -40,10 +40,12 @@ jobs:
       run: |
         export PYTHONPATH=${PYTHONPATH}:$(pwd)/authsignal
         echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
     - name: Build a binary wheel and a source tarball (Testing)
       run: |
         poetry version "${BASE_VERSION}.$(git rev-parse --short HEAD)"
-        python3 -m build --version ${{ env.VERSION }}
+        python3 -m build
         ls -la dist/
     - uses: actions/upload-artifact@v3
       with:

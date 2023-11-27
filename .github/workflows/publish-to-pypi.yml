@@ -28,7 +28,7 @@ jobs:
         python3 -m build
 
     - name: Run tests
-      run: python authsignal/client_tests.py
+      run: poetry run python authsignal/client_tests.py
 
     - name: Build a binary wheel and a source tarball
       run: python3 -m build

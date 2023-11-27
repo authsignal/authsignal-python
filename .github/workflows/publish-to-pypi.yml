@@ -18,7 +18,7 @@ jobs:
 
     - name: Install pypa/build
       run: >-
-        python3 -m build --user
+        python3 -m build
 
     - name: Run tests
       run: python authsignal/client_tests.py

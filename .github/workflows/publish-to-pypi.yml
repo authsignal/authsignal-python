@@ -13,15 +13,22 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.x"
+    - name: Install build module
+      run: python3 -m pip install build
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+      
+    - name: Install dependencies
+      run: poetry install
+
     - name: Install pypa/build
       run: >-
-        python3 -m
-        pip install -r requirements.txt
-        build
-        --user
+        python3 -m build
 
     - name: Run tests
-      run: python authsignal/client_tests.py
+      run: poetry run python authsignal/client_tests.py
 
     - name: Build a binary wheel and a source tarball
       run: python3 -m build

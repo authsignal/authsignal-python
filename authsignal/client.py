@@ -73,7 +73,7 @@ class Client(object):
         try:
             response = self.session.post(
                 path,
-                data=json.dumps(payload, cls=DecimalEncoder),
+                data=json.dumps(payload if payload is not None else {}, cls=DecimalEncoder),
                 auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
                 headers=headers,
                 timeout=timeout,

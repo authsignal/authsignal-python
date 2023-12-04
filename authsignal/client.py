@@ -78,8 +78,8 @@ class Client(object):
                 headers=headers,
                 timeout=timeout,
                 params=params)
-            if response.status_code > 299:
-                raise ApiException("Track Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"]) 
+            response.raise_for_status() 
+
             return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
@@ -108,8 +108,8 @@ class Client(object):
                 headers=headers,
                 timeout=timeout,
                 params=params)
-            if response.status_code > 299:
-                raise ApiException("Get Action Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
+            response.raise_for_status() 
+
             return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
@@ -140,8 +140,8 @@ class Client(object):
                 headers=headers,
                 timeout=timeout,
                 params=params)
-            if response.status_code > 299:
-                raise ApiException("Get User Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
+            response.raise_for_status()
+            
             return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
@@ -170,8 +170,7 @@ class Client(object):
                 headers=headers,
                 timeout=timeout,
                 params=params)
-            if response.status_code > 299:
-                raise ApiException("Enroll Verified Authenticator Failed", path, http_status_code=response.status_code, api_error_message=response.json()["message"])
+            response.raise_for_status()
             return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e

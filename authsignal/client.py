@@ -183,7 +183,7 @@ class Client(object):
             return
 
         decoded_user_id = decoded_token["other"]["userId"]
-        action = decoded_token["other"]["action"]
+        action = decoded_token["other"]["actionCode"]
         idempotency_key = decoded_token["other"]["idempotencyKey"]
 
         if  user_id and user_id != decoded_user_id:

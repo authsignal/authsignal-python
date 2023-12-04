@@ -9,7 +9,7 @@ base_url = "https://signal.authsignal.com/v1"
 
 class Test(unittest.TestCase):
     def setUp(self):
-        self.authsignal_client = client.Client(api_key='SECRET')
+        self.authsignal_client = client.Client(api_key='SECRET', tenant_id='TENANTID')
 
     @responses.activate
     def test_get_user(self):
@@ -87,14 +87,16 @@ class Test(unittest.TestCase):
 class ValidateChallenge(unittest.TestCase):
     def setUp(self):
         self.api_key='SECRET'
+        self.tenant_id='TENANTID'
 
-        self.authsignal_client = client.Client(api_key=self.api_key)
+        self.authsignal_client = client.Client(api_key=self.api_key, tenant_id=self.tenant_id)
 
         self.payload = {
             "iat": int(time.time()),
             "sub": "legitimate_user_id",
             "exp": int(time.time()) + 10 * 60,
             "iss": "test",
+            "aud": f"https://challenge.authsignal.com/{self.tenant_id}",
             "scope": "read:authenticators add:authenticators update:authenticators remove:authenticators",
             "other": {
                 "tenantId": "555159e4-adc3-454b-82b1-b55a2783f712",

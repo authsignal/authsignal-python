@@ -100,7 +100,7 @@ class ValidateChallenge(unittest.TestCase):
                 "tenantId": "555159e4-adc3-454b-82b1-b55a2783f712",
                 "publishableKey": "2fff14a6600b7a58170793109c78b876",
                 "userId": "legitimate_user_id",
-                "action": "alwaysChallenge",
+                "actionCode": "alwaysChallenge",
                 "idempotencyKey": "a682af7d-c929-4c29-9c2a-71e69ab5c603"
             }
         }

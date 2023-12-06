@@ -177,7 +177,8 @@ class Client(object):
 
     def validate_challenge(self, token, user_id=None):
         try:
-            decoded_token = jwt.decode(token, self.api_key, algorithms=["HS256"])
+            decoded_token = jwt.decode(token, self.api_key, algorithms=["HS256"], options={'verify_aud': False})
+
         except jwt.DecodeError as e:
             print(e)
             return

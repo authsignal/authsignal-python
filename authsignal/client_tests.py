@@ -7,6 +7,8 @@ import client
 
 base_url = "https://signal.authsignal.com/v1"
 
+base_challenge_url = 'https://api.authsignal.com/v1'
+
 class Test(unittest.TestCase):
     def setUp(self):
         self.authsignal_client = client.Client(api_key='SECRET')
@@ -109,8 +111,15 @@ class ValidateChallenge(unittest.TestCase):
 
     @responses.activate
     def test_it_returns_success_if_user_id_is_correct(self):
-        responses.add(responses.GET, f"{base_url}/users/legitimate_user_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
-            json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
+        responses.add(responses.POST, f"{base_challenge_url}/validate",
+            json={
+                'isValid': True, 
+                'state': 'CHALLENGE_SUCCEEDED', 
+                'stateUpdatedAt': '2024-07-11T22:03:39.037Z', 
+                'userId': 'legitimate_user_id', 
+                'actionCode': 'signin', 
+                'idempotencyKey': 'f2a0275e-bdbb-464a-8398-13c60c98097c'
+            },
             status=200
         )
 
@@ -118,24 +127,33 @@ class ValidateChallenge(unittest.TestCase):
 
         self.assertEqual(response["user_id"], "legitimate_user_id")
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
-        self.assertTrue(response["success"])
+        self.assertTrue(response["is_valid"])
 
     @responses.activate
     def test_it_returns_success_false_if_user_id_is_incorrect(self):
-        responses.add(responses.GET, f"{base_url}/users/spoofed_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
-            json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
-            status=200
+        responses.add(responses.POST, f"{base_challenge_url}/validate",
+            json={'isValid': False, 'error': 'User is invalid.'},
+            status=400
         )
 
         response = self.authsignal_client.validate_challenge(user_id="spoofed_id", token=self.jwt_token)
 
-        self.assertIsNone(response['state'])
-        self.assertFalse(response['success'])
+        self.assertIsNone(response['action'])
+        self.assertFalse(response['is_valid'])
+        self.assertEqual(response.get("error"), "User is invalid.")
 
     @responses.activate
     def test_it_returns_success_true_if_no_user_id_is_provided(self):
-        responses.add(responses.GET, f"{base_url}/users/legitimate_user_id/actions/alwaysChallenge/a682af7d-c929-4c29-9c2a-71e69ab5c603",
-            json={"state": "CHALLENGE_SUCCEEDED", "ruleIds": [], "stateUpdatedAt": "2022-07-25T03:19:00.316Z", "createdAt": "2022-07-25T03:19:00.316Z"},
+        responses.add(responses.POST, f"{base_challenge_url}/validate",
+            json={
+                'isValid': True, 
+                'state': 'CHALLENGE_SUCCEEDED', 
+                'stateUpdatedAt': '2024-07-11T22:39:23.613Z', 
+                'userId': 'legitimate_user_id', 
+                'actionCode': 'signin', 
+                'idempotencyKey': '6d09db21-1aa9-4b7f-826f-dbc6a0af79eb', 
+                'verificationMethod': 'EMAIL_MAGIC_LINK'
+            },
             status=200
         )
 
@@ -143,7 +161,7 @@ class ValidateChallenge(unittest.TestCase):
 
         self.assertEqual(response["user_id"], "legitimate_user_id")
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
-        self.assertTrue(response["success"])
+        self.assertTrue(response["is_valid"])
 
 if __name__ == "__main__":
     unittest.main()

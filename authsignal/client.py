@@ -3,11 +3,14 @@ import jwt
 from authsignal.version import VERSION
 
 import humps
+from typing import Dict, Any, Optional
 import json
 import requests
+
 _UNICODE_STRING = str
 
 API_BASE_URL = 'https://signal.authsignal.com'
+API_CHALLENGE_URL = 'https://api.authsignal.com/v1'
 
 BLOCK = "BLOCK"
 ALLOW = "ALLOW"
@@ -175,31 +178,29 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
-    def validate_challenge(self, token, user_id=None):
+    def validate_challenge(self, token: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+        path = f"{API_CHALLENGE_URL}/validate"
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+
         try:
-            decoded_token = jwt.decode(token, self.api_key, algorithms=["HS256"], options={'verify_aud': False})
+            response = self.session.post(
+                path,
+                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+                data=json.dumps({'token': token, 'userId': user_id}),
+                headers=headers,
+                timeout=self.timeout
+            )
+            
+            response_data = humps.decamelize(response.json())
 
-        except jwt.DecodeError as e:
-            print(e)
-            return
+            action = response_data.pop('action_code', None)
 
-        decoded_user_id = decoded_token["other"]["userId"]
-        action = decoded_token["other"]["actionCode"]
-        idempotency_key = decoded_token["other"]["idempotencyKey"]
-
-        if  user_id and user_id != decoded_user_id:
-            return {"user_id": decoded_user_id, "success": False, "state": None}
-
-        if action and idempotency_key:
-            action_result = self.get_action(user_id=decoded_user_id, action=action, idempotency_key=idempotency_key)
-
-            if action_result:
-                state = action_result["state"]
-                success = state == "CHALLENGE_SUCCEEDED"
-
-                return {"user_id": decoded_user_id, "success": success, "state": state, "action": action}
-
-        return {"userId": decoded_user_id, "success": False, "state": None}
+            return {'action': action, **response_data}
+        except requests.exceptions.RequestException as e:
+            raise ApiException(str(e), path) from e
 
     def _default_headers(self):
         return {'Content-type': 'application/json',

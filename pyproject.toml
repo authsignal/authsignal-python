@@ -14,7 +14,7 @@ python = "^3.8"
 requests = "^2.28.1"
 pyjwt = "^2.8.0"
 pyhumps = "^3.8.0"
-sigstore = "^3.0.0"
+securesystemslib = "0.31.0"
 
 [tool.poetry.dev-dependencies]
 responses = "^0.24.1"

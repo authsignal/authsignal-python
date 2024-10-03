@@ -165,7 +165,7 @@ class Client(object):
 
         response.raise_for_status()
 
-        return response.json()
+        return humps.decamelize(response.json())
     
     def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user

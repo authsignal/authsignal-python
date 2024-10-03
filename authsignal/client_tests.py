@@ -89,11 +89,11 @@ class Test(unittest.TestCase):
     @responses.activate
     def test_delete_user(self):
         responses.add(responses.DELETE, f"{base_url}/users/1234",
-                      json={"message": "User deleted successfully"}, status=200)
+                      json={"success": True}, status=200)
 
         response = self.authsignal_client.delete_user(user_id="1234")
 
-        self.assertEqual(response["message"], "User deleted successfully")
+        self.assertEqual(response["success"], True)
 
 class ValidateChallenge(unittest.TestCase):
     def setUp(self):

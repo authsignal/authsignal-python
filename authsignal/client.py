@@ -148,6 +148,25 @@ class Client(object):
             return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
+        
+    def delete_user(self, user_id):
+        _assert_non_empty_unicode(user_id, 'user_id')
+
+        user_id = urllib.parse.quote(user_id)
+        path = f'{self.url}/v1/users/{user_id}'
+        headers = self._default_headers()
+
+        try:
+            response = self.session.delete(
+                path,
+                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+                headers=headers,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return humps.decamelize(response.json())
+        except requests.exceptions.RequestException as e:
+            raise ApiException(str(e), path) from e
     
     def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user

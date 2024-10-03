@@ -6,6 +6,7 @@ import humps
 from typing import Dict, Any, Optional
 import json
 import requests
+import urllib.parse
 
 _UNICODE_STRING = str
 

@@ -138,6 +138,23 @@ class ValidateChallenge(unittest.TestCase):
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
         self.assertTrue(response["is_valid"])
 
+
+    @responses.activate
+    def test_delete_user_authenticator(self):
+        self.authsignal_client = client.Client(api_key='test_api_key')
+        user_id = 'test_user'
+        user_authenticator_id = 'test_authenticator'
+        expected_url = f'{self.authsignal_client.url}/v1/users/{user_id}/authenticators/{user_authenticator_id}'
+        
+        responses.add(responses.DELETE, expected_url, json={"success": True}, status=200)
+
+        response = self.authsignal_client.delete_user_authenticator(user_id, user_authenticator_id)
+
+        self.assertEqual(response["success"], True)
+        self.assertEqual(len(responses.calls), 1)
+        self.assertEqual(responses.calls[0].request.url, expected_url)
+        self.assertEqual(responses.calls[0].response.status_code, 200)
+
     @responses.activate
     def test_it_returns_success_false_if_user_id_is_incorrect(self):
         responses.add(responses.POST, f"{base_challenge_url}/validate",

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "authsignal"
-version = "2.0.5"
+version = "2.0.6"
 description = "Authsignal Python SDK for Passwordless Step Up Authentication"
 authors = ["justinsoong <justinsoong@gmail.com>"]
 license = "MIT"

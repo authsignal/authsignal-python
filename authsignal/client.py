@@ -6,6 +6,7 @@ import humps
 from typing import Dict, Any, Optional
 import json
 import requests
+import urllib.parse
 
 _UNICODE_STRING = str
 
@@ -148,6 +149,23 @@ class Client(object):
             return humps.decamelize(response.json())
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
+        
+    def update_user(self, user_id, data):
+        user_id = urllib.parse.quote(user_id)
+
+        path = self._get_user_url(user_id)
+
+        headers = self._default_headers()
+
+        response = requests.post(path, 
+            json=data, 
+            headers=headers, 
+            auth=requests.auth.HTTPBasicAuth(self.api_key, '')
+        )
+
+        response.raise_for_status()
+
+        return humps.decamelize(response.json())
     
     def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user

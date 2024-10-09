@@ -94,6 +94,18 @@ class Test(unittest.TestCase):
         response = self.authsignal_client.delete_user(user_id="1234")
 
         self.assertEqual(response["success"], True)
+        
+    def test_update_user(self):
+        user_id = "1234"
+        data = {"email": "newemail@gmail.com"}
+        expected_response = {"email": "newemail@gmail.com"}
+
+        responses.add(responses.POST, f"{base_url}/users/{user_id}",
+                      json=expected_response, status=200)
+
+        response = self.authsignal_client.update_user(user_id=user_id, data=data)
+
+        self.assertEqual(response["email"], "newemail@gmail.com")
 
 class ValidateChallenge(unittest.TestCase):
     def setUp(self):

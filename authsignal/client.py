@@ -1,5 +1,4 @@
 import decimal
-import jwt
 from authsignal.version import VERSION
 
 import humps

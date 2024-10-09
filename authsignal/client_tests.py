@@ -95,6 +95,7 @@ class Test(unittest.TestCase):
 
         self.assertEqual(response["success"], True)
         
+    @responses.activate
     def test_update_user(self):
         user_id = "1234"
         data = {"email": "newemail@gmail.com"}

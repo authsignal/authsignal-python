@@ -151,6 +151,21 @@ class ValidateChallenge(unittest.TestCase):
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
         self.assertTrue(response["is_valid"])
 
+    @responses.activate
+    def test_it_returns_isValid_false_user_id_is_incorrect(self):
+        responses.add(responses.POST, f"{base_challenge_url}/validate",
+            json={
+                'isValid': False, 
+                'error': 'User is invalid.',
+            },
+            status=200
+        )
+
+        response = self.authsignal_client.validate_challenge(user_id="malicious_user_id", token=self.jwt_token)
+
+        # self.assertEqual(response["error"], "CHALLENGE_SUCCEEDED")
+        self.assertFalse(response["is_valid"])
+
 
     @responses.activate
     def test_delete_user_authenticator(self):

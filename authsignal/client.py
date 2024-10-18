@@ -235,27 +235,31 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
-    def validate_challenge(self, token: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+    def validate_challenge(self, token: str, user_id: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
         path = f"{API_CHALLENGE_URL}/validate"
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         }
 
+        payload = {'token': token}
+        if user_id is not None:
+            payload['userId'] = user_id
+        if action is not None:
+            payload['action'] = action
+
         try:
             response = self.session.post(
                 path,
                 auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps({'token': token, 'userId': user_id}),
+                data=json.dumps(payload),
                 headers=headers,
                 timeout=self.timeout
             )
             
             response_data = humps.decamelize(response.json())
 
-            action = response_data.pop('action_code', None)
-
-            return {'action': action, **response_data}
+            return response_data
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 

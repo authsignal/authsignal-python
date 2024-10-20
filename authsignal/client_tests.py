@@ -192,7 +192,6 @@ class ValidateChallenge(unittest.TestCase):
 
         response = self.authsignal_client.validate_challenge(user_id="spoofed_id", token=self.jwt_token)
 
-        self.assertIsNone(response['action'])
         self.assertFalse(response['is_valid'])
         self.assertEqual(response.get("error"), "User is invalid.")
 

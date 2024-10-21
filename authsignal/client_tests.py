@@ -5,9 +5,7 @@ import time
 
 import client
 
-base_url = "https://signal.authsignal.com/v1"
-
-base_challenge_url = 'https://api.authsignal.com/v1'
+base_url = "https://api.authsignal.com/v1"
 
 class Test(unittest.TestCase):
     def setUp(self):
@@ -133,7 +131,7 @@ class ValidateChallenge(unittest.TestCase):
 
     @responses.activate
     def test_it_returns_success_if_user_id_is_correct(self):
-        responses.add(responses.POST, f"{base_challenge_url}/validate",
+        responses.add(responses.POST, f"{base_url}/validate",
             json={
                 'isValid': True, 
                 'state': 'CHALLENGE_SUCCEEDED', 
@@ -169,7 +167,7 @@ class ValidateChallenge(unittest.TestCase):
 
     @responses.activate
     def test_it_returns_success_false_if_user_id_is_incorrect(self):
-        responses.add(responses.POST, f"{base_challenge_url}/validate",
+        responses.add(responses.POST, f"{base_url}/validate",
             json={'isValid': False, 'error': 'User is invalid.'},
             status=400
         )
@@ -181,7 +179,7 @@ class ValidateChallenge(unittest.TestCase):
 
     @responses.activate
     def test_it_returns_isValid_false_if_action_is_incorrect(self):
-        responses.add(responses.POST, f"{base_challenge_url}/validate",
+        responses.add(responses.POST, f"{base_url}/validate",
             json={
                 'isValid': False, 
                 'error': 'Action is invalid.',
@@ -196,7 +194,7 @@ class ValidateChallenge(unittest.TestCase):
 
     @responses.activate
     def test_it_returns_success_true_if_no_user_id_is_provided(self):
-        responses.add(responses.POST, f"{base_challenge_url}/validate",
+        responses.add(responses.POST, f"{base_url}/validate",
             json={
                 'isValid': True, 
                 'state': 'CHALLENGE_SUCCEEDED', 

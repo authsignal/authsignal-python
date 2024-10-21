@@ -1,4 +1,5 @@
 import decimal
+import authsignal
 from authsignal.version import VERSION
 
 import humps
@@ -9,8 +10,7 @@ import urllib.parse
 
 _UNICODE_STRING = str
 
-API_BASE_URL = 'https://signal.authsignal.com'
-API_CHALLENGE_URL = 'https://api.authsignal.com/v1'
+API_BASE_URL = 'https://api.authsignal.com/v1'
 
 BLOCK = "BLOCK"
 ALLOW = "ALLOW"
@@ -52,8 +52,8 @@ class Client(object):
         self.url = api_url
         self.timeout = timeout
         self.version = version
+        self.api_version = 'v1'
 
-    
     def track(self, user_id, action, payload=None, path=None):
         """Tracks an action to authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
@@ -152,8 +152,7 @@ class Client(object):
     def delete_user(self, user_id):
         _assert_non_empty_unicode(user_id, 'user_id')
 
-        user_id = urllib.parse.quote(user_id)
-        path = f'{self.url}/v1/users/{user_id}'
+        path = self._delete_user_url(user_id)
         headers = self._default_headers()
 
         try:
@@ -235,27 +234,31 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
-    def validate_challenge(self, token: str, user_id: Optional[str] = None) -> Dict[str, Any]:
-        path = f"{API_CHALLENGE_URL}/validate"
+    def validate_challenge(self, token: str, user_id: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
+        path = self._validate_challenge_url()
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         }
 
+        payload = {'token': token}
+        if user_id is not None:
+            payload['userId'] = user_id
+        if action is not None:
+            payload['action'] = action
+
         try:
             response = self.session.post(
                 path,
                 auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps({'token': token, 'userId': user_id}),
+                data=json.dumps(payload),
                 headers=headers,
                 timeout=self.timeout
             )
             
             response_data = humps.decamelize(response.json())
 
-            action = response_data.pop('action_code', None)
-
-            return {'action': action, **response_data}
+            return response_data
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
@@ -263,20 +266,39 @@ class Client(object):
         return {'Content-type': 'application/json',
                 'Accept': '*/*',
                 'User-Agent': self._user_agent()}
+
     def _user_agent(self):
         return f'Authsignal Python v{self.version}'
 
     def _track_url(self, user_id, action):
-        return f'{self.url}/v1/users/{user_id}/actions/{action}'
-    
+        path = self._ensure_versioned_path(f'/users/{user_id}/actions/{action}')
+        return f'{self.url}{path}'
+
     def _get_action_url(self, user_id, action, idempotency_key):
-        return f'{self.url}/v1/users/{user_id}/actions/{action}/{idempotency_key}'
-    
+        path = self._ensure_versioned_path(f'/users/{user_id}/actions/{action}/{idempotency_key}')
+        return f'{self.url}{path}'
+
     def _get_user_url(self, user_id):
-        return f'{self.url}/v1/users/{user_id}'
+        path = self._ensure_versioned_path(f'/users/{user_id}')
+        return f'{self.url}{path}'
 
     def _post_enrollment_url(self, user_id):
-        return f'{self.url}/v1/users/{user_id}/authenticators'
+        path = self._ensure_versioned_path(f'/users/{user_id}/authenticators')
+        return f'{self.url}{path}'
+    
+    def _validate_challenge_url(self):
+        path = self._ensure_versioned_path(f'/validate')
+        return f'{self.url}{path}'
+
+    def _delete_user_url(self, user_id):
+        user_id = urllib.parse.quote(user_id)
+        path = self._ensure_versioned_path(f'/users/{user_id}')
+        return f'{self.url}{path}'
+    
+    def _ensure_versioned_path(self, path):
+        if not self.url.endswith(f'/{self.api_version}'):
+            return f'/{self.api_version}{path}'
+        return path
 
 class ApiException(Exception):
     def __init__(self, message, url, http_status_code=None, body=None, api_status=None,
@@ -307,4 +329,3 @@ def _assert_non_empty_dict(val, name):
         raise TypeError('{0} must be a non-empty dict'.format(name))
     elif not val:
         raise ValueError('{0} must be a non-empty dict'.format(name))
-

@@ -154,6 +154,7 @@ class ValidateChallenge(unittest.TestCase):
         self.authsignal_client = client.Client(api_key='test_api_key')
         user_id = 'test_user'
         user_authenticator_id = 'test_authenticator'
+
         expected_url = f'{self.authsignal_client.url}/v1/users/{user_id}/authenticators/{user_authenticator_id}'
         
         responses.add(responses.DELETE, expected_url, json={"success": True}, status=200)

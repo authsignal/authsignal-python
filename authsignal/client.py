@@ -152,8 +152,7 @@ class Client(object):
     def delete_user(self, user_id):
         _assert_non_empty_unicode(user_id, 'user_id')
 
-        user_id = urllib.parse.quote(user_id)
-        path = f'{self.url}/v1/users/{user_id}'
+        path = self._delete_user_url(user_id)
         headers = self._default_headers()
 
         try:
@@ -291,6 +290,11 @@ class Client(object):
         path = self._ensure_versioned_path(f'/validate')
         return f'{self.url}{path}'
 
+    def _delete_user_url(self, user_id):
+        user_id = urllib.parse.quote(user_id)
+        path = self._ensure_versioned_path(f'/users/{user_id}')
+        return f'{self.url}{path}'
+    
     def _ensure_versioned_path(self, path):
         if not self.url.endswith(f'/{self.api_version}'):
             return f'/{self.api_version}{path}'

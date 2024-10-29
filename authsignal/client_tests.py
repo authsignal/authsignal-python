@@ -150,7 +150,7 @@ class ValidateChallenge(unittest.TestCase):
         self.assertTrue(response["is_valid"])
 
     @responses.activate
-    def test_delete_user_authenticator(self):
+    def test_delete_authenticator(self):
         self.authsignal_client = client.Client(api_key='test_api_key')
         user_id = 'test_user'
         user_authenticator_id = 'test_authenticator'
@@ -159,7 +159,7 @@ class ValidateChallenge(unittest.TestCase):
         
         responses.add(responses.DELETE, expected_url, json={"success": True}, status=200)
 
-        response = self.authsignal_client.delete_user_authenticator(user_id, user_authenticator_id)
+        response = self.authsignal_client.delete_authenticator(user_id, user_authenticator_id)
 
         self.assertEqual(response["success"], True)
         self.assertEqual(len(responses.calls), 1)

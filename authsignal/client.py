@@ -167,7 +167,7 @@ class Client(object):
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
         
-    def delete_user_authenticator(self, user_id: str, user_authenticator_id: str) -> Dict[str, Any]:
+    def delete_authenticator(self, user_id: str, user_authenticator_id: str) -> Dict[str, Any]:
         _assert_non_empty_unicode(user_id, 'user_id')
         _assert_non_empty_unicode(user_authenticator_id, 'user_authenticator_id')
 

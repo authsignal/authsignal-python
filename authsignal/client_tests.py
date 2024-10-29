@@ -170,7 +170,7 @@ class ValidateChallenge(unittest.TestCase):
     def test_validate_challenge_returns_success_false_if_user_id_is_incorrect(self):
         responses.add(responses.POST, f"{base_url}/validate",
             json={'isValid': False, 'error': 'User is invalid.'},
-            status=400
+            status=200
         )
 
         response = self.authsignal_client.validate_challenge(user_id="spoofed_id", token=self.jwt_token)

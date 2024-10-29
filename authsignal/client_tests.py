@@ -122,7 +122,7 @@ class ValidateChallenge(unittest.TestCase):
                 "tenantId": "555159e4-adc3-454b-82b1-b55a2783f712",
                 "publishableKey": "2fff14a6600b7a58170793109c78b876",
                 "userId": "legitimate_user_id",
-                "actionCode": "alwaysChallenge",
+                "action": "alwaysChallenge",
                 "idempotencyKey": "a682af7d-c929-4c29-9c2a-71e69ab5c603"
             }
         }
@@ -137,7 +137,7 @@ class ValidateChallenge(unittest.TestCase):
                 'state': 'CHALLENGE_SUCCEEDED', 
                 'stateUpdatedAt': '2024-07-11T22:03:39.037Z', 
                 'userId': 'legitimate_user_id', 
-                'actionCode': 'signin', 
+                'action': 'signin', 
                 'idempotencyKey': 'f2a0275e-bdbb-464a-8398-13c60c98097c'
             },
             status=200
@@ -167,7 +167,7 @@ class ValidateChallenge(unittest.TestCase):
         self.assertEqual(responses.calls[0].response.status_code, 200)
 
     @responses.activate
-    def test_it_returns_success_false_if_user_id_is_incorrect(self):
+    def test_validate_challenge_returns_success_false_if_user_id_is_incorrect(self):
         responses.add(responses.POST, f"{base_url}/validate",
             json={'isValid': False, 'error': 'User is invalid.'},
             status=400
@@ -179,7 +179,7 @@ class ValidateChallenge(unittest.TestCase):
         self.assertEqual(response.get("error"), "User is invalid.")
 
     @responses.activate
-    def test_it_returns_isValid_false_if_action_is_incorrect(self):
+    def test_validate_challenge_returns_isValid_false_if_action_is_incorrect(self):
         responses.add(responses.POST, f"{base_url}/validate",
             json={
                 'isValid': False, 
@@ -194,14 +194,15 @@ class ValidateChallenge(unittest.TestCase):
         self.assertFalse(response["is_valid"])
 
     @responses.activate
-    def test_it_returns_success_true_if_no_user_id_is_provided(self):
+    def test_validate_challenge_returns_success_true_if_no_user_id_is_provided(self):
         responses.add(responses.POST, f"{base_url}/validate",
             json={
                 'isValid': True, 
                 'state': 'CHALLENGE_SUCCEEDED', 
                 'stateUpdatedAt': '2024-07-11T22:39:23.613Z', 
                 'userId': 'legitimate_user_id', 
-                'actionCode': 'signin', 
+                'action': 'signin', 
+                'actionCode': 'signin',
                 'idempotencyKey': '6d09db21-1aa9-4b7f-826f-dbc6a0af79eb', 
                 'verificationMethod': 'EMAIL_MAGIC_LINK'
             },

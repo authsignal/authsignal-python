@@ -50,6 +50,18 @@ class CustomSession(requests.Session):
         """Remove keys with None values from a dictionary."""
         return {k: v for k, v in d.items() if v is not None}
 
+    def send(self, request, **kwargs):
+        response = super().send(request, **kwargs)
+        if response.headers.get('Content-Type') == 'application/json':
+            try:
+                data = response.json()
+                if isinstance(data, dict) and 'actionCode' in data:
+                    del data['actionCode']
+                response._content = json.dumps(data).encode('utf-8')
+            except json.JSONDecodeError:
+                pass
+        return response
+
 class Client(object):
 
     def __init__(

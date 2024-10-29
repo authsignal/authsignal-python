@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 import json
 import requests
 import urllib.parse
+from requests.adapters import HTTPAdapter
 
 _UNICODE_STRING = str
 
@@ -23,6 +24,31 @@ class DecimalEncoder(json.JSONEncoder):
         if isinstance(o, decimal.Decimal):
             return (str(o),)
         return super(DecimalEncoder, self).default(o)
+
+class CustomSession(requests.Session):
+    def __init__(self):
+        super().__init__()
+        self.mount('http://', HTTPAdapter())
+        self.mount('https://', HTTPAdapter())
+
+    def prepare_request(self, request):
+        # Prepare the request to access the body
+        prepared_request = super().prepare_request(request)
+        
+        # Remove None values from JSON payload
+        if prepared_request.headers.get('Content-Type') == 'application/json' and prepared_request.body:
+            try:
+                data = json.loads(prepared_request.body)
+                cleaned_data = self._remove_none_values(data)
+                prepared_request.body = json.dumps(cleaned_data)
+            except json.JSONDecodeError:
+                pass
+        return prepared_request
+
+    @staticmethod
+    def _remove_none_values(d: Dict[str, Any]) -> Dict[str, Any]:
+        """Remove keys with None values from a dictionary."""
+        return {k: v for k, v in d.items() if v is not None}
 
 class Client(object):
 
@@ -47,7 +73,7 @@ class Client(object):
         if api_key is None:
             api_key = authsignal.api_key
 
-        self.session = session or requests.Session()
+        self.session = session or CustomSession()
         self.api_key = api_key
         self.url = api_url
         self.timeout = timeout
@@ -241,17 +267,12 @@ class Client(object):
             'Accept': 'application/json'
         }
 
-        payload = {'token': token}
-        if user_id is not None:
-            payload['userId'] = user_id
-        if action is not None:
-            payload['action'] = action
 
         try:
             response = self.session.post(
                 path,
                 auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps(payload),
+                data=json.dumps({'token': token, 'userId': user_id, 'action': action}),
                 headers=headers,
                 timeout=self.timeout
             )

@@ -124,7 +124,6 @@ class Client(object):
             headers=headers,
             timeout=timeout,
             params=params)
-        response.raise_for_status() 
 
         return response.json()
     
@@ -151,7 +150,6 @@ class Client(object):
             headers=headers,
             timeout=timeout,
             params=params)
-        response.raise_for_status() 
 
         return response.json()
 
@@ -180,8 +178,7 @@ class Client(object):
             headers=headers,
             timeout=timeout,
             params=params)
-        response.raise_for_status()
-        
+
         return response.json()
         
     def delete_user(self, user_id):
@@ -196,7 +193,7 @@ class Client(object):
             headers=headers,
             timeout=self.timeout
         )
-        response.raise_for_status()
+
         return response.json()
         
     def delete_authenticator(self, user_id: str, user_authenticator_id: str) -> Dict[str, Any]:
@@ -214,7 +211,7 @@ class Client(object):
             headers=headers,
             timeout=self.timeout
         )
-        response.raise_for_status()
+
         return response.json()
         
     def update_user(self, user_id, data):
@@ -229,8 +226,6 @@ class Client(object):
             headers=headers, 
             auth=requests.auth.HTTPBasicAuth(self.api_key, '')
         )
-
-        response.raise_for_status()
 
         return response.json()
     
@@ -257,7 +252,7 @@ class Client(object):
             headers=headers,
             timeout=timeout,
             params=params)
-        response.raise_for_status()
+
         return response.json()
 
     def validate_challenge(self, token: str, user_id: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
@@ -275,9 +270,7 @@ class Client(object):
             timeout=self.timeout
         )
         
-        response_data = response.json()
-
-        return response_data
+        return response.json()
 
     def _default_headers(self):
         return {'Content-type': 'application/json',

@@ -51,16 +51,22 @@ class CustomSession(requests.Session):
         return {k: v for k, v in d.items() if v is not None}
 
     def send(self, request, **kwargs):
-        response = super().send(request, **kwargs)
-        if response.headers.get('Content-Type') == 'application/json':
-            try:
-                data = response.json()
-                if isinstance(data, dict) and 'actionCode' in data:
-                    del data['actionCode']
-                response._content = json.dumps(humps.decamelize(data)).encode('utf-8')
-            except json.JSONDecodeError:
-                pass
-        return response
+        try:
+            response = super().send(request, **kwargs)
+            response.raise_for_status()  # Raises HTTPError for 4xx/5xx responses
+
+            if response.headers.get('Content-Type') == 'application/json':
+                try:
+                    data = response.json()
+                    if isinstance(data, dict) and 'actionCode' in data:
+                        del data['actionCode']
+                    response._content = json.dumps(humps.decamelize(data)).encode('utf-8')
+                except json.JSONDecodeError:
+                    pass
+            return response
+        except requests.exceptions.RequestException as e:
+            # Handle the exception globally
+            raise ApiException(str(e), request.url, http_status_code=e.response.status_code if e.response else None) from e
 
 class Client(object):
 
@@ -111,19 +117,15 @@ class Client(object):
         params = {}
         timeout = self.timeout
 
-        try:
-            response = self.session.post(
-                path,
-                data=json.dumps(payload if payload is not None else {}, cls=DecimalEncoder),
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                headers=headers,
-                timeout=timeout,
-                params=params)
-            response.raise_for_status() 
+        response = self.session.post(
+            path,
+            data=json.dumps(payload if payload is not None else {}, cls=DecimalEncoder),
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            headers=headers,
+            timeout=timeout,
+            params=params)
 
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        return response.json()
     
     def get_action(self, user_id, action, idempotency_key,  path=None):
         """Retrieves the action from authsignal, scoped to the user_id and action
@@ -142,18 +144,14 @@ class Client(object):
         params = {}
         timeout = self.timeout
 
-        try:
-            response = self.session.get(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                headers=headers,
-                timeout=timeout,
-                params=params)
-            response.raise_for_status() 
+        response = self.session.get(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            headers=headers,
+            timeout=timeout,
+            params=params)
 
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        return response.json()
 
     def get_user(self, user_id, redirect_url=None,  path=None):
         """Retrieves the user from authsignal, and returns enrolment status, and self service url.
@@ -174,18 +172,14 @@ class Client(object):
             _assert_non_empty_unicode(redirect_url, 'redirect_url')
             params.update({"redirectUrl": redirect_url})
 
-        try:
-            response = self.session.get(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                headers=headers,
-                timeout=timeout,
-                params=params)
-            response.raise_for_status()
-            
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        response = self.session.get(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            headers=headers,
+            timeout=timeout,
+            params=params)
+
+        return response.json()
         
     def delete_user(self, user_id):
         _assert_non_empty_unicode(user_id, 'user_id')
@@ -193,17 +187,14 @@ class Client(object):
         path = self._delete_user_url(user_id)
         headers = self._default_headers()
 
-        try:
-            response = self.session.delete(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                headers=headers,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        response = self.session.delete(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            headers=headers,
+            timeout=self.timeout
+        )
+
+        return response.json()
         
     def delete_authenticator(self, user_id: str, user_authenticator_id: str) -> Dict[str, Any]:
         _assert_non_empty_unicode(user_id, 'user_id')
@@ -214,17 +205,14 @@ class Client(object):
         path = f'{self.url}/v1/users/{user_id}/authenticators/{user_authenticator_id}'
         headers = self._default_headers()
 
-        try:
-            response = self.session.delete(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                headers=headers,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        response = self.session.delete(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            headers=headers,
+            timeout=self.timeout
+        )
+
+        return response.json()
         
     def update_user(self, user_id, data):
         user_id = urllib.parse.quote(user_id)
@@ -238,8 +226,6 @@ class Client(object):
             headers=headers, 
             auth=requests.auth.HTTPBasicAuth(self.api_key, '')
         )
-
-        response.raise_for_status()
 
         return response.json()
     
@@ -259,18 +245,15 @@ class Client(object):
         params = {}
         timeout = self.timeout
 
-        try:
-            response = self.session.post(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps(authenticator_payload),
-                headers=headers,
-                timeout=timeout,
-                params=params)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        response = self.session.post(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            data=json.dumps(authenticator_payload),
+            headers=headers,
+            timeout=timeout,
+            params=params)
+
+        return response.json()
 
     def validate_challenge(self, token: str, user_id: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
         path = self._validate_challenge_url()
@@ -279,21 +262,15 @@ class Client(object):
             'Accept': 'application/json'
         }
 
-
-        try:
-            response = self.session.post(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps({'token': token, 'userId': user_id, 'action': action}),
-                headers=headers,
-                timeout=self.timeout
-            )
-            
-            response_data = response.json()
-
-            return response_data
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        response = self.session.post(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            data=json.dumps({'token': token, 'userId': user_id, 'action': action}),
+            headers=headers,
+            timeout=self.timeout
+        )
+        
+        return response.json()
 
     def _default_headers(self):
         return {'Content-type': 'application/json',
@@ -336,14 +313,17 @@ class Client(object):
 class ApiException(Exception):
     def __init__(self, message, url, http_status_code=None, body=None, api_status=None,
                  api_error_message=None, request=None):
-        Exception.__init__(self, message)
-
+        super().__init__(message)
         self.url = url
         self.http_status_code = http_status_code
         self.body = body
         self.api_status = api_status
         self.api_error_message = api_error_message
         self.request = request
+
+    def __str__(self):
+        return (f"{super().__str__()} status: {self.http_status_code}, "
+                f"error: {self.api_error_message}, description: {self.body}")
 
 def _assert_non_empty_unicode(val, name, error_cls=None):
     error = False

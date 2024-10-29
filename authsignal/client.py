@@ -50,6 +50,18 @@ class CustomSession(requests.Session):
         """Remove keys with None values from a dictionary."""
         return {k: v for k, v in d.items() if v is not None}
 
+    def send(self, request, **kwargs):
+        response = super().send(request, **kwargs)
+        if response.headers.get('Content-Type') == 'application/json':
+            try:
+                data = response.json()
+                if isinstance(data, dict) and 'actionCode' in data:
+                    del data['actionCode']
+                response._content = json.dumps(humps.decamelize(data)).encode('utf-8')
+            except json.JSONDecodeError:
+                pass
+        return response
+
 class Client(object):
 
     def __init__(
@@ -109,7 +121,7 @@ class Client(object):
                 params=params)
             response.raise_for_status() 
 
-            return humps.decamelize(response.json())
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
     
@@ -139,7 +151,7 @@ class Client(object):
                 params=params)
             response.raise_for_status() 
 
-            return humps.decamelize(response.json())
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
@@ -171,7 +183,7 @@ class Client(object):
                 params=params)
             response.raise_for_status()
             
-            return humps.decamelize(response.json())
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
         
@@ -189,7 +201,7 @@ class Client(object):
                 timeout=self.timeout
             )
             response.raise_for_status()
-            return humps.decamelize(response.json())
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
         
@@ -210,7 +222,7 @@ class Client(object):
                 timeout=self.timeout
             )
             response.raise_for_status()
-            return humps.decamelize(response.json())
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
         
@@ -229,7 +241,7 @@ class Client(object):
 
         response.raise_for_status()
 
-        return humps.decamelize(response.json())
+        return response.json()
     
     def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
         """Enrols an authenticator like a phone number for SMS on behalf of the user
@@ -256,7 +268,7 @@ class Client(object):
                 timeout=timeout,
                 params=params)
             response.raise_for_status()
-            return humps.decamelize(response.json())
+            return response.json()
         except requests.exceptions.RequestException as e:
             raise ApiException(str(e), path) from e
 
@@ -277,7 +289,7 @@ class Client(object):
                 timeout=self.timeout
             )
             
-            response_data = humps.decamelize(response.json())
+            response_data = response.json()
 
             return response_data
         except requests.exceptions.RequestException as e:

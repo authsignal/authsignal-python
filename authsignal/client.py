@@ -267,21 +267,17 @@ class Client(object):
             'Accept': 'application/json'
         }
 
+        response = self.session.post(
+            path,
+            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
+            data=json.dumps({'token': token, 'userId': user_id, 'action': action}),
+            headers=headers,
+            timeout=self.timeout
+        )
+        
+        response_data = response.json()
 
-        try:
-            response = self.session.post(
-                path,
-                auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-                data=json.dumps({'token': token, 'userId': user_id, 'action': action}),
-                headers=headers,
-                timeout=self.timeout
-            )
-            
-            response_data = response.json()
-
-            return response_data
-        except requests.exceptions.RequestException as e:
-            raise ApiException(str(e), path) from e
+        return response_data
 
     def _default_headers(self):
         return {'Content-type': 'application/json',

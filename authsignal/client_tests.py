@@ -201,8 +201,7 @@ class ValidateChallenge(unittest.TestCase):
                 'state': 'CHALLENGE_SUCCEEDED', 
                 'stateUpdatedAt': '2024-07-11T22:39:23.613Z', 
                 'userId': 'legitimate_user_id', 
-                'action': 'signin', 
-                'actionCode': 'signin',
+                'action': 'signin',
                 'idempotencyKey': '6d09db21-1aa9-4b7f-826f-dbc6a0af79eb', 
                 'verificationMethod': 'EMAIL_MAGIC_LINK'
             },
@@ -214,6 +213,26 @@ class ValidateChallenge(unittest.TestCase):
         self.assertEqual(response["user_id"], "legitimate_user_id")
         self.assertEqual(response["state"], "CHALLENGE_SUCCEEDED")
         self.assertTrue(response["is_valid"])
+
+    @responses.activate
+    def test_action_code_is_omitted_from_validate_challenge_response(self):
+        responses.add(responses.POST, f"{base_url}/validate",
+            json={
+                'isValid': True, 
+                'state': 'CHALLENGE_SUCCEEDED', 
+                'stateUpdatedAt': '2024-07-11T22:39:23.613Z', 
+                'userId': 'legitimate_user_id', 
+                'action': 'signin', 
+                'actionCode': 'signin',
+                'idempotencyKey': '6d09db21-1aa9-4b7f-826f-dbc6a0af79eb', 
+                'verificationMethod': 'EMAIL_MAGIC_LINK'
+            },
+            status=200
+        )
+
+        response = self.authsignal_client.validate_challenge(token=self.jwt_token)
+
+        self.assertNotIn("action_code", response)
 
 if __name__ == "__main__":
     unittest.main()

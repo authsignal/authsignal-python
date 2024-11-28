@@ -19,6 +19,9 @@ class ActionState(Enum):
     CHALLENGE_REQUIRED = "CHALLENGE_REQUIRED"
     CHALLENGE_FAILED = "CHALLENGE_FAILED"
     CHALLENGE_SUCCEEDED = "CHALLENGE_SUCCEEDED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    REVIEW_FAILED = "REVIEW_FAILED"
+    REVIEW_SUCCEEDED = "REVIEW_SUCCEEDED"
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -161,7 +164,7 @@ class AuthsignalClient(object):
 
         return response.decamelized_content
 
-    def delete_user(self, user_id: str) -> Dict[str, Any]:
+    def delete_user(self, user_id: str):
         """Deletes a user from authsignal
         Args:
             user_id:  A user's id.
@@ -206,9 +209,7 @@ class AuthsignalClient(object):
 
         return response.decamelized_content
 
-    def delete_authenticator(
-        self, user_id: str, user_authenticator_id: str
-    ) -> Dict[str, Any]:
+    def delete_authenticator(self, user_id: str, user_authenticator_id: str):
         """Deletes an authenticator from authsignal
         Args:
             user_id: A user's id.

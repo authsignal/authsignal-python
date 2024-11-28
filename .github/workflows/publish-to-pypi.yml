@@ -31,7 +31,7 @@ jobs:
         env:
           AUTHSIGNAL_API_URL: ${{ secrets.AUTHSIGNAL_API_URL }}
           AUTHSIGNAL_API_SECRET: ${{ secrets.AUTHSIGNAL_API_SECRET }}
-        run: poetry run python authsignal/client_tests.py
+        run: poetry run python -m authsignal.client_tests
 
       - name: Build a binary wheel and a source tarball
         run: python3 -m build

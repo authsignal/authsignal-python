@@ -155,7 +155,7 @@ class AuthsignalClient(object):
 
         path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}"
 
-        response = self.session.post(
+        response = self.session.patch(
             url=path, data=json.dumps(attributes, cls=DecimalEncoder)
         )
 
@@ -172,7 +172,7 @@ class AuthsignalClient(object):
 
         response = self.session.delete(url=path)
 
-        return response.decamelized_content
+        return
 
     def get_authenticators(self, user_id: str) -> Dict[str, Any]:
         """Retrieves the authenticators for a user
@@ -221,13 +221,15 @@ class AuthsignalClient(object):
 
         response = self.session.delete(url=path)
 
-        return response.decamelized_content
+        return
 
     def validate_challenge(self, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Validates a token from authsignal
         Args:
             attributes: A dictionary containing the token to validate.
         """
+        _assert_non_empty_dict(attributes, "attributes")
+
         path = f"{self.api_url}/validate"
 
         response = self.session.post(

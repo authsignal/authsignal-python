@@ -54,7 +54,6 @@ class CustomSession(requests.Session):
             data = json.loads(prepared_request.body)
             cleaned_data = self._remove_none_values(data)
             prepared_request.body = json.dumps(cleaned_data)
-
         return prepared_request
 
     @staticmethod
@@ -69,12 +68,9 @@ class CustomSession(requests.Session):
             response.raise_for_status()
 
             if response.headers.get("Content-Type") == "application/json":
-                try:
-                    data = response.json()
-                    decamelized_content = humps.decamelize(data)
-                    response.decamelized_content = decamelized_content
-                except json.JSONDecodeError:
-                    response.decamelized_content = None
+                data = response.json()
+                decamelized_content = humps.decamelize(data)
+                response.decamelized_content = decamelized_content
             return response
         except requests.exceptions.RequestException as e:
             error_code = None

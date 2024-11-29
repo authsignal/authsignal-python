@@ -108,6 +108,10 @@ jobs:
           inputs: >-
             ./dist/*.tar.gz
             ./dist/*.whl
+        env:
+          # Pin cryptography to avoid the SCT registration issue
+          PIP_CONSTRAINT: |
+            cryptography==43.0.3
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ github.token }}

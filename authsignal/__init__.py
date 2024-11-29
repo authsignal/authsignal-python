@@ -1,2 +1,1 @@
-api_key = None
-from .client import Client
+from .client import AuthsignalClient

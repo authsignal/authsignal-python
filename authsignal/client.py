@@ -1,23 +1,28 @@
 import decimal
-import authsignal
-from authsignal.version import VERSION
+import json
+import urllib.parse
+from enum import Enum
+from typing import Dict, Any
 
 import humps
-from typing import Dict, Any, Optional
-import json
 import requests
-import urllib.parse
 from requests.adapters import HTTPAdapter
 
-_UNICODE_STRING = str
+from authsignal.version import VERSION
 
-API_BASE_URL = 'https://api.authsignal.com/v1'
+API_BASE_URL = "https://api.authsignal.com/v1"
 
-BLOCK = "BLOCK"
-ALLOW = "ALLOW"
-CHALLENGE_REQUIRED = "CHALLENGE_REQUIRED"
-CHALLENGE_FAILED = "CHALLENGE_FAILED"
-CHALLENGE_SUCCEEDED = "CHALLENGE_SUCCEEDED"
+
+class ActionState(Enum):
+    BLOCK = "BLOCK"
+    ALLOW = "ALLOW"
+    CHALLENGE_REQUIRED = "CHALLENGE_REQUIRED"
+    CHALLENGE_FAILED = "CHALLENGE_FAILED"
+    CHALLENGE_SUCCEEDED = "CHALLENGE_SUCCEEDED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    REVIEW_FAILED = "REVIEW_FAILED"
+    REVIEW_SUCCEEDED = "REVIEW_SUCCEEDED"
+
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, o):
@@ -25,24 +30,33 @@ class DecimalEncoder(json.JSONEncoder):
             return (str(o),)
         return super(DecimalEncoder, self).default(o)
 
+
 class CustomSession(requests.Session):
-    def __init__(self):
+    def __init__(self, timeout, api_key):
         super().__init__()
-        self.mount('http://', HTTPAdapter())
-        self.mount('https://', HTTPAdapter())
+        self.mount("http://", HTTPAdapter())
+        self.mount("https://", HTTPAdapter())
+
+        self.timeout = timeout
+        self.auth = requests.auth.HTTPBasicAuth(api_key, "")
+        self.headers.update(
+            {
+                "Content-Type": "application/json",
+                "Accept": "*/*",
+                "User-Agent": "authsignal-python-sdk/" + VERSION,
+            }
+        )
 
     def prepare_request(self, request):
-        # Prepare the request to access the body
         prepared_request = super().prepare_request(request)
-        
-        # Remove None values from JSON payload
-        if prepared_request.headers.get('Content-Type') == 'application/json' and prepared_request.body:
-            try:
-                data = json.loads(prepared_request.body)
-                cleaned_data = self._remove_none_values(data)
-                prepared_request.body = json.dumps(cleaned_data)
-            except json.JSONDecodeError:
-                pass
+
+        if (
+            prepared_request.headers.get("Content-Type") == "application/json"
+            and prepared_request.body
+        ):
+            data = json.loads(prepared_request.body)
+            cleaned_data = self._remove_none_values(data)
+            prepared_request.body = json.dumps(cleaned_data)
         return prepared_request
 
     @staticmethod
@@ -50,295 +64,244 @@ class CustomSession(requests.Session):
         """Remove keys with None values from a dictionary."""
         return {k: v for k, v in d.items() if v is not None}
 
-    def send(self, request, **kwargs):
+    def send(self, request, **kwargs) -> requests.Response:
+        kwargs.setdefault("timeout", self.timeout)
         try:
             response = super().send(request, **kwargs)
-            response.raise_for_status()  # Raises HTTPError for 4xx/5xx responses
+            response.raise_for_status()
 
-            if response.headers.get('Content-Type') == 'application/json':
-                try:
-                    data = response.json()
-                    if isinstance(data, dict) and 'actionCode' in data:
-                        del data['actionCode']
-                    response._content = json.dumps(humps.decamelize(data)).encode('utf-8')
-                except json.JSONDecodeError:
-                    pass
+            if response.headers.get("Content-Type") == "application/json":
+                data = response.json()
+                decamelized_content = humps.decamelize(data)
+                response.decamelized_content = decamelized_content
             return response
         except requests.exceptions.RequestException as e:
-            # Handle the exception globally
-            raise ApiException(str(e), request.url, http_status_code=e.response.status_code if e.response else None) from e
+            error_code = None
+            error_description = None
+            status_code = None
 
-class Client(object):
+            if isinstance(e, requests.exceptions.HTTPError):
+                status_code = e.response.status_code
+                try:
+                    error_data = e.response.json()
+                    error_code = error_data.get("errorCode")
+                    error_description = error_data.get("errorDescription")
+                except (ValueError, AttributeError):
+                    pass
 
-    def __init__(
-            self,
-            api_key=None,
-            api_url=API_BASE_URL,
-            timeout=2.0,
-            version=VERSION,
-            session=None):
+            raise ApiException(error_code, error_description, status_code) from e
+
+
+class AuthsignalClient(object):
+
+    def __init__(self, api_secret_key, api_url=API_BASE_URL, timeout=2.0):
         """Initialize the client.
         Args:
             api_key: Your Authsignal Secret API key of your tenant
             api_url: Base URL, including scheme and host, for sending events.
-                Defaults to 'https://signal.authsignal.com'.
+                Defaults to 'https://api.authsignal.com/v1'.
             timeout: Number of seconds to wait before failing request. Defaults
                 to 2 seconds.
         """
-        _assert_non_empty_unicode(api_url, 'api_url')
-        _assert_non_empty_unicode(api_key, 'api_key')
+        _assert_non_empty_string(api_url, "api_url")
+        _assert_non_empty_string(api_secret_key, "api_secret_key")
 
-        if api_key is None:
-            api_key = authsignal.api_key
+        self.api_secret_key = api_secret_key
+        self.api_url = api_url
 
-        self.session = session or CustomSession()
-        self.api_key = api_key
-        self.url = api_url
-        self.timeout = timeout
-        self.version = version
-        self.api_version = 'v1'
+        self.session = CustomSession(timeout=timeout, api_key=api_secret_key)
+        self.version = VERSION
 
-    def track(self, user_id, action, payload=None, path=None):
+    def track(
+        self, user_id: str, action: str, attributes: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Tracks an action to authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
-            action: The action that you are retrieving, i.e. signIn
-            payload(optional): The additional payload options to supply authsignal for more advance rules
+            action: The action that you are tracking an event for, i.e. signIn.
+            attributes: A dictionary containing the request body.
         """
-        _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(action, 'action')
-
-        headers = self._default_headers()
-
-        if path is None:
-            path = self._track_url(user_id, action)
-        params = {}
-        timeout = self.timeout
+        _assert_non_empty_string(user_id, "user_id")
+        _assert_non_empty_string(action, "action")
+        _assert_non_empty_dict(attributes, "attributes")
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/actions/{urllib.parse.quote(action)}"
 
         response = self.session.post(
-            path,
-            data=json.dumps(payload if payload is not None else {}, cls=DecimalEncoder),
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            headers=headers,
-            timeout=timeout,
-            params=params)
+            url=path, data=json.dumps(attributes, cls=DecimalEncoder)
+        )
 
-        return response.json()
-    
-    def get_action(self, user_id, action, idempotency_key,  path=None):
-        """Retrieves the action from authsignal, scoped to the user_id and action
-        Returns the status of the action so that you can determine to whether to continue
+        return response.decamelized_content
+
+    def get_user(self, user_id: str) -> Dict[str, Any]:
+        """Retrieves the user from authsignal
         Args:
-            user_id:  A user's id. This id should be the same as the user_id used in
-                event calls.
-            action: The action that you are retrieving, i.e. signIn
+            user_id:  A user's id.
         """
-        _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(action, 'action')
+        _assert_non_empty_string(user_id, "user_id")
 
-        headers = self._default_headers()
-        if path is None:
-            path = self._get_action_url(user_id, action, idempotency_key)
-        params = {}
-        timeout = self.timeout
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}"
 
-        response = self.session.get(
-            path,
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            headers=headers,
-            timeout=timeout,
-            params=params)
+        response = self.session.get(url=path)
 
-        return response.json()
+        return response.decamelized_content
 
-    def get_user(self, user_id, redirect_url=None,  path=None):
-        """Retrieves the user from authsignal, and returns enrolment status, and self service url.
+    def update_user(self, user_id: str, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Updates the user in authsignal
         Args:
-            user_id:  A user's id. This id should be the same as the user_id used in
-                event calls.
-            redirect_url(optional): Use this to redirect the user back to the your page (redirect method)
+            user_id:  A user's id.
+            attributes: A dictionary containing the request body.
         """
-        _assert_non_empty_unicode(user_id, 'user_id')
+        _assert_non_empty_string(user_id, "user_id")
+        _assert_non_empty_dict(attributes, "attributes")
 
-        headers = headers = self._default_headers()
-        if path is None:
-            path = self._get_user_url(user_id)
-        params = {}
-        timeout = self.timeout
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}"
 
-        if redirect_url is not None:
-            _assert_non_empty_unicode(redirect_url, 'redirect_url')
-            params.update({"redirectUrl": redirect_url})
-
-        response = self.session.get(
-            path,
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            headers=headers,
-            timeout=timeout,
-            params=params)
-
-        return response.json()
-        
-    def delete_user(self, user_id):
-        _assert_non_empty_unicode(user_id, 'user_id')
-
-        path = self._delete_user_url(user_id)
-        headers = self._default_headers()
-
-        response = self.session.delete(
-            path,
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            headers=headers,
-            timeout=self.timeout
+        response = self.session.patch(
+            url=path, data=json.dumps(attributes, cls=DecimalEncoder)
         )
 
-        return response.json()
-        
-    def delete_authenticator(self, user_id: str, user_authenticator_id: str) -> Dict[str, Any]:
-        _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_unicode(user_authenticator_id, 'user_authenticator_id')
+        return response.decamelized_content
 
-        user_id = urllib.parse.quote(user_id)
-        user_authenticator_id = urllib.parse.quote(user_authenticator_id)
-        path = f'{self.url}/v1/users/{user_id}/authenticators/{user_authenticator_id}'
-        headers = self._default_headers()
+    def delete_user(self, user_id: str):
+        """Deletes a user from authsignal
+        Args:
+            user_id:  A user's id.
+        """
+        _assert_non_empty_string(user_id, "user_id")
 
-        response = self.session.delete(
-            path,
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            headers=headers,
-            timeout=self.timeout
-        )
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}"
 
-        return response.json()
-        
-    def update_user(self, user_id, data):
-        user_id = urllib.parse.quote(user_id)
+        response = self.session.delete(url=path)
 
-        path = self._get_user_url(user_id)
+        return
 
-        headers = self._default_headers()
+    def get_authenticators(self, user_id: str) -> Dict[str, Any]:
+        """Retrieves the authenticators for a user
+        Args:
+            user_id:  A user's id.
+        """
+        _assert_non_empty_string(user_id, "user_id")
 
-        response = requests.post(path, 
-            json=data, 
-            headers=headers, 
-            auth=requests.auth.HTTPBasicAuth(self.api_key, '')
-        )
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/authenticators"
 
-        return response.json()
-    
-    def enroll_verified_authenticator(self, user_id, authenticator_payload,  path=None):
-        """Enrols an authenticator like a phone number for SMS on behalf of the user
+        response = self.session.get(url=path)
+
+        return response.decamelized_content
+
+    def enroll_verified_authenticator(
+        self, user_id: str, attributes: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Enrolls an authenticator for a given user.
         Args:
             user_id:  A user's id. This id should be the same as the user_id used in event calls.
-            authenticator_payload:  A dictionary with the key/value of the authenticator you want to link {'oobChannel': 'SMS', 'phoneNumber': '+112345677777'}
+            attributes:  A dictionary containing the request body.
         """
-        _assert_non_empty_unicode(user_id, 'user_id')
-        _assert_non_empty_dict(authenticator_payload, 'authenticator_payload')
+        _assert_non_empty_string(user_id, "user_id")
+        _assert_non_empty_dict(attributes, "attributes")
 
-        headers = self._default_headers()
-
-        if path is None:
-            path = self._post_enrollment_url(user_id)
-        params = {}
-        timeout = self.timeout
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/authenticators"
 
         response = self.session.post(
-            path,
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            data=json.dumps(authenticator_payload),
-            headers=headers,
-            timeout=timeout,
-            params=params)
-
-        return response.json()
-
-    def validate_challenge(self, token: str, user_id: Optional[str] = None, action: Optional[str] = None) -> Dict[str, Any]:
-        path = self._validate_challenge_url()
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-
-        response = self.session.post(
-            path,
-            auth=requests.auth.HTTPBasicAuth(self.api_key, ''),
-            data=json.dumps({'token': token, 'userId': user_id, 'action': action}),
-            headers=headers,
-            timeout=self.timeout
+            url=path, data=json.dumps(attributes, cls=DecimalEncoder)
         )
-        
-        return response.json()
 
-    def _default_headers(self):
-        return {'Content-type': 'application/json',
-                'Accept': '*/*',
-                'User-Agent': self._user_agent()}
+        return response.decamelized_content
 
-    def _user_agent(self):
-        return f'Authsignal Python v{self.version}'
+    def delete_authenticator(self, user_id: str, user_authenticator_id: str):
+        """Deletes an authenticator from authsignal
+        Args:
+            user_id: A user's id.
+            user_authenticator_id: The id of the authenticator you want to delete
+        """
+        _assert_non_empty_string(user_id, "user_id")
+        _assert_non_empty_string(user_authenticator_id, "user_authenticator_id")
 
-    def _track_url(self, user_id, action):
-        path = self._ensure_versioned_path(f'/users/{user_id}/actions/{action}')
-        return f'{self.url}{path}'
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/authenticators/{urllib.parse.quote(user_authenticator_id)}"
 
-    def _get_action_url(self, user_id, action, idempotency_key):
-        path = self._ensure_versioned_path(f'/users/{user_id}/actions/{action}/{idempotency_key}')
-        return f'{self.url}{path}'
+        response = self.session.delete(url=path)
 
-    def _get_user_url(self, user_id):
-        path = self._ensure_versioned_path(f'/users/{user_id}')
-        return f'{self.url}{path}'
+        return
 
-    def _post_enrollment_url(self, user_id):
-        path = self._ensure_versioned_path(f'/users/{user_id}/authenticators')
-        return f'{self.url}{path}'
-    
-    def _validate_challenge_url(self):
-        path = self._ensure_versioned_path(f'/validate')
-        return f'{self.url}{path}'
+    def validate_challenge(self, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Validates a token from authsignal
+        Args:
+            attributes: A dictionary containing the token to validate.
+        """
+        _assert_non_empty_dict(attributes, "attributes")
 
-    def _delete_user_url(self, user_id):
-        user_id = urllib.parse.quote(user_id)
-        path = self._ensure_versioned_path(f'/users/{user_id}')
-        return f'{self.url}{path}'
-    
-    def _ensure_versioned_path(self, path):
-        if not self.url.endswith(f'/{self.api_version}'):
-            return f'/{self.api_version}{path}'
-        return path
+        path = f"{self.api_url}/validate"
+
+        response = self.session.post(
+            url=path, data=json.dumps(attributes, cls=DecimalEncoder)
+        )
+
+        return response.decamelized_content
+
+    def get_action(
+        self, user_id: str, action: str, idempotency_key: str
+    ) -> Dict[str, Any]:
+        """Retrieves the action from authsignal for a given user and action.
+        Args:
+            user_id: A user's id.
+            action: The action that you are retrieving, i.e. signIn
+            idempotency_key: The action's idempotency key
+        """
+        _assert_non_empty_string(user_id, "user_id")
+        _assert_non_empty_string(action, "action")
+        _assert_non_empty_string(idempotency_key, "idempotency_key")
+
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/actions/{urllib.parse.quote(action)}/{urllib.parse.quote(idempotency_key)}"
+
+        response = self.session.get(url=path)
+
+        return response.decamelized_content
+
+    def update_action(
+        self,
+        user_id: str,
+        action: str,
+        idempotency_key: str,
+        attributes: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Updates an action in authsignal
+        Args:
+            user_id: A user's id.
+            action: The action that you are updating, i.e. signIn
+            idempotency_key: The action's idempotency key
+            attributes: A dictionary containing the request body.
+        """
+        _assert_non_empty_string(user_id, "user_id")
+        _assert_non_empty_string(action, "action")
+        _assert_non_empty_string(idempotency_key, "idempotency_key")
+        _assert_non_empty_dict(attributes, "attributes")
+
+        path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/actions/{urllib.parse.quote(action)}/{urllib.parse.quote(idempotency_key)}"
+
+        response = self.session.patch(
+            url=path, data=json.dumps(attributes, cls=DecimalEncoder)
+        )
+
+        return response.decamelized_content
+
 
 class ApiException(Exception):
-    def __init__(self, message, url, http_status_code=None, body=None, api_status=None,
-                 api_error_message=None, request=None):
-        super().__init__(message)
-        self.url = url
-        self.http_status_code = http_status_code
-        self.body = body
-        self.api_status = api_status
-        self.api_error_message = api_error_message
-        self.request = request
+    def __init__(self, error_code, error_description, status_code):
+        super().__init__(f"AuthsignalException: {status_code} - {error_description}")
+        self.error_code = error_code
+        self.error_description = error_description
+        self.status_code = status_code
 
     def __str__(self):
-        return (f"{super().__str__()} status: {self.http_status_code}, "
-                f"error: {self.api_error_message}, description: {self.body}")
+        return f"AuthsignalException: {self.status_code} - {self.error_description}"
 
-def _assert_non_empty_unicode(val, name, error_cls=None):
-    error = False
-    if not isinstance(val, _UNICODE_STRING):
-        error_cls = error_cls or TypeError
-        error = True
-    elif not val:
-        error_cls = error_cls or ValueError
-        error = True
 
-    if error:
-        raise error_cls('{0} must be a non-empty string'.format(name))
+def _assert_non_empty_string(val: str, name: str) -> None:
+    if not isinstance(val, str) or not val:
+        raise ValueError(f"{name} must be a non-empty string")
 
-def _assert_non_empty_dict(val, name):
-    if not isinstance(val, dict):
-        raise TypeError('{0} must be a non-empty dict'.format(name))
-    elif not val:
-        raise ValueError('{0} must be a non-empty dict'.format(name))
+
+def _assert_non_empty_dict(val: dict, name: str) -> None:
+    if not isinstance(val, dict) or not val:
+        raise ValueError(f"{name} must be a non-empty dict")

@@ -102,16 +102,20 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
+      - name: Set up Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Install cryptography version 43
+        run: |
+          python -m pip install --upgrade pip
+          pip install cryptography==43.*
       - name: Sign the dists with Sigstore
         uses: sigstore/gh-action-sigstore-python@v2.1.1
         with:
           inputs: >-
             ./dist/*.tar.gz
             ./dist/*.whl
-        env:
-          # Pin cryptography to avoid the SCT registration issue
-          PIP_CONSTRAINT: |
-            cryptography==43.0.3
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ github.token }}

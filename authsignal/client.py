@@ -113,7 +113,7 @@ class AuthsignalClient(object):
         self.version = VERSION
 
     def track(
-        self, user_id: str, action: str, attributes: Dict[str, Any]
+        self, user_id: str, action: str, attributes: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Tracks an action to authsignal, scoped to the user_id and action
         Returns the status of the action so that you can determine to whether to continue
@@ -121,13 +121,14 @@ class AuthsignalClient(object):
             user_id:  A user's id. This id should be the same as the user_id used in
                 event calls.
             action: The action that you are tracking an event for, i.e. signIn.
-            attributes: A dictionary containing the request body.
+            attributes: A dictionary containing the request body. Optional.
         """
         _assert_non_empty_string(user_id, "user_id")
         _assert_non_empty_string(action, "action")
-        _assert_non_empty_dict(attributes, "attributes")
+
         path = f"{self.api_url}/users/{urllib.parse.quote(user_id)}/actions/{urllib.parse.quote(action)}"
 
+        attributes = attributes or {}
         response = self.session.post(
             url=path, data=json.dumps(attributes, cls=DecimalEncoder)
         )

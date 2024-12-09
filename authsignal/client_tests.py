@@ -232,6 +232,22 @@ class TestAuthsignalClient(unittest.TestCase):
             "AuthsignalException: 401 - The request is unauthorized. Check that your API key and region base URL are correctly configured.",
         )
 
+    def test_track_without_attributes(self):
+        client = AuthsignalClient(
+            api_secret_key=self.test_config["api_secret_key"],
+            api_url=self.test_config["api_url"],
+        )
+
+        track_response = client.track(
+            user_id="user123",
+            action="python-sdk-test",
+        )
+
+        # Verify basic response structure
+        self.assertEqual(track_response["state"], "CHALLENGE_REQUIRED")
+        self.assertTrue(track_response.get("idempotency_key"))
+        self.assertIsNotNone(track_response.get("token"))
+
 
 if __name__ == "__main__":
     unittest.main()

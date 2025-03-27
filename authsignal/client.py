@@ -44,6 +44,7 @@ class CustomSession(requests.Session):
                 "Content-Type": "application/json",
                 "Accept": "*/*",
                 "User-Agent": "authsignal-python-sdk/" + VERSION,
+                "X-Authsignal-Version": VERSION,
             }
         )
 

@@ -11,23 +11,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.x"
-      - name: Install build module
-        run: python3 -m pip install build
 
       - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
+        uses: snok/install-poetry@v1
 
       - name: Install dependencies
         run: poetry install
-
-      - name: Install pypa/build
-        run: >-
-          python3 -m build
 
       - name: Run tests
         env:
@@ -35,31 +29,44 @@ jobs:
           AUTHSIGNAL_API_SECRET: ${{ secrets.AUTHSIGNAL_API_SECRET }}
         run: poetry run python -m authsignal.client_tests
 
-      - name: Build a binary wheel and a source tarball
+      - name: Verify package structure
+        run: |
+          pip install check-manifest
+          check-manifest
+
+      - name: Build main distribution
         run: python3 -m build
-      - name: Store the distribution packages
+      
+      - name: Test package installation
+        run: |
+          python -m venv test_env
+          source test_env/bin/activate
+          pip install dist/*.whl
+          # Add a basic import test here
+          deactivate
+
+      - name: Store main distribution packages
         uses: actions/upload-artifact@v3
         with:
           name: python-package-distributions
           path: dist/
 
-      # Clean up previous build artifacts
+      # Build TestPyPI version
       - name: Clean build artifacts
         run: rm -rf dist/*
 
-      # Build with testing version
       - name: Extract version from version.py
         run: |
           export PYTHONPATH=${PYTHONPATH}:$(pwd)/authsignal
           echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-      - name: Build a binary wheel and a source tarball (Testing)
+
+      - name: Build TestPyPI distribution
         run: |
           poetry version "${BASE_VERSION}.dev$(date +%s)"
           python3 -m build
-          ls -la dist/
-      - uses: actions/upload-artifact@v3
+
+      - name: Store test distribution packages
+        uses: actions/upload-artifact@v3
         with:
           name: python-package-distributions-testing
           path: dist/
@@ -67,15 +74,15 @@ jobs:
   publish-to-pypi:
     name: >-
       Publish Python 🐍 distribution 📦 to PyPI
-    if: startsWith(github.ref, 'refs/tags/') # only publish to PyPI on tag pushes
+    if: startsWith(github.ref, 'refs/tags/')
     needs:
       - build
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/<package-name> # Replace <package-name> with your PyPI project name
+      url: https://pypi.org/p/authsignal
     permissions:
-      id-token: write # IMPORTANT: mandatory for trusted publishing
+      id-token: write # needed for both trusted publishing and sigstore
 
     steps:
       - name: Download all the dists
@@ -83,27 +90,8 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
-      - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
-  github-release:
-    name: >-
-      Sign the Python 🐍 distribution 📦 with Sigstore
-      and upload them to GitHub Release
-    needs:
-      - publish-to-pypi
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write # IMPORTANT: mandatory for making GitHub Releases
-      id-token: write # IMPORTANT: mandatory for sigstore
-
-    steps:
-      - name: Download all the dists
-        uses: actions/download-artifact@v3
-        with:
-          name: python-package-distributions
-          path: dist/
+      
+      # Add signing steps before publishing
       - name: Set up Python environment
         uses: actions/setup-python@v4
         with:
@@ -118,22 +106,9 @@ jobs:
           inputs: >-
             ./dist/*.tar.gz
             ./dist/*.whl
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          gh release view '${{ github.ref_name }}' --repo '${{ github.repository }}' || \
-          gh release create '${{ github.ref_name }}' --repo '${{ github.repository }}' --notes ""
-      - name: Upload artifact signatures to GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        # Upload to GitHub Release using the `gh` CLI.
-        # `dist/` contains the built packages, and the
-        # sigstore-produced signatures and certificates.
-        run: >-
-          gh release upload
-          '${{ github.ref_name }}' dist/**
-          --repo '${{ github.repository }}'
+
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI
@@ -143,7 +118,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/<package-name>
+      url: https://test.pypi.org/p/authsignal
 
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing

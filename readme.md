@@ -1,6 +1,8 @@
-# Authsignal Server Python SDK
+<img width="1070" alt="Authsignal" src="https://raw.githubusercontent.com/authsignal/authsignal-python/main/.github/images/authsignal.png">
 
-[Authsignal](https://www.authsignal.com/?utm_source=github&utm_medium=python_sdk) provides passwordless step up authentication (Multi-factor Authentication - MFA) that can be placed anywhere within your application. Authsignal also provides a no-code fraud risk rules engine to manage when step up challenges are triggered.
+# Authsignal Python SDK
+
+The Authsignal Python library for server-side applications.
 
 ## Installation
 
@@ -18,6 +20,4 @@ pip3 install git+https://github.com/authsignal/authsignal-python
 
 ## Documentation
 
-Check out our [getting started guide](https://docs.authsignal.com/api/server-api) for documentation on how to get up and running quickly.
-
-Or browse the [full documentation](https://docs.authsignal.com/sdks/server/python) for the Python client.
+Refer to our [SDK documentation](https://docs.authsignal.com/sdks/server) for information on how to use this SDK.

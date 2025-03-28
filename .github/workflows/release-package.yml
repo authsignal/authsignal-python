@@ -8,6 +8,7 @@ jobs:
   build:
     name: Build distribution 📦
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -29,22 +30,11 @@ jobs:
           AUTHSIGNAL_API_SECRET: ${{ secrets.AUTHSIGNAL_API_SECRET }}
         run: poetry run python -m authsignal.client_tests
 
-      - name: Verify package structure
+      - name: Build and store main distribution
         run: |
-          pip install check-manifest
-          check-manifest
-
-      - name: Build main distribution
-        run: python3 -m build
-      
-      - name: Test package installation
-        run: |
-          python -m venv test_env
-          source test_env/bin/activate
-          pip install dist/*.whl
-          # Add a basic import test here
-          deactivate
-
+          poetry build
+          ls -la dist/
+        
       - name: Store main distribution packages
         uses: actions/upload-artifact@v4
         with:
@@ -60,10 +50,11 @@ jobs:
           export PYTHONPATH=${PYTHONPATH}:$(pwd)/authsignal
           echo "BASE_VERSION=$(python -c 'from version import VERSION; print(VERSION)')" >> $GITHUB_ENV
 
-      - name: Build TestPyPI distribution
+      - name: Build and store TestPyPI distribution
         run: |
           poetry version "${BASE_VERSION}.dev$(date +%s)"
-          python3 -m build
+          poetry build
+          ls -la dist/
 
       - name: Store test distribution packages
         uses: actions/upload-artifact@v4

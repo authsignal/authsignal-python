@@ -75,6 +75,7 @@ jobs:
       url: https://pypi.org/p/authsignal
     permissions:
       id-token: write # needed for both trusted publishing and sigstore
+      contents: write
 
     steps:
       - name: Download all the dists
@@ -94,8 +95,6 @@ jobs:
           pip install cryptography==43.*
       - name: Sign the dists with Sigstore
         uses: sigstore/gh-action-sigstore-python@v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           inputs: >-
             ./dist/*.tar.gz
@@ -116,7 +115,6 @@ jobs:
 
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing
-      contents: write
 
     steps:
       - name: Download all the test dists

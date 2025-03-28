@@ -100,8 +100,16 @@ jobs:
             ./dist/*.tar.gz
             ./dist/*.whl
 
+      # Move signature files to separate directory
+      - name: Separate signature files
+        run: |
+          mkdir -p signatures
+          mv dist/*.sigstore.json signatures/
+
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@v1.12.4
+        with:
+          packages-dir: dist/
 
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI

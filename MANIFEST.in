@@ -1,2 +1,0 @@
-  include *.lock
-  recursive-include authsignal *.pyc

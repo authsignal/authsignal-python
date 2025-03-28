@@ -23,7 +23,3 @@ pip-log.txt
 nosetests.xml
 
 .vscode
-
-# Python cache files
-__pycache__/
-*.py[cod]

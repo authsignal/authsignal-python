@@ -43,7 +43,7 @@ class CustomSession(requests.Session):
             {
                 "Content-Type": "application/json",
                 "Accept": "*/*",
-                "User-Agent": "Authsignal Python",
+                "User-Agent": "authsignal-python",
                 "X-Authsignal-Version": VERSION,
             }
         )

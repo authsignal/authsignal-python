@@ -9,6 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from authsignal.version import VERSION
+from authsignal.webhook import Webhook
 
 API_BASE_URL = "https://api.authsignal.com/v1"
 
@@ -98,7 +99,7 @@ class AuthsignalClient(object):
     def __init__(self, api_secret_key, api_url=API_BASE_URL, timeout=2.0):
         """Initialize the client.
         Args:
-            api_key: Your Authsignal Secret API key of your tenant
+            api_secret_key: Your Authsignal Secret API key of your tenant
             api_url: Base URL, including scheme and host, for sending events.
                 Defaults to 'https://api.authsignal.com/v1'.
             timeout: Number of seconds to wait before failing request. Defaults
@@ -112,6 +113,7 @@ class AuthsignalClient(object):
 
         self.session = CustomSession(timeout=timeout, api_key=api_secret_key)
         self.version = VERSION
+        self.webhook = Webhook(api_secret_key=api_secret_key)
 
     def track(
         self, user_id: str, action: str, attributes: Dict[str, Any] = None

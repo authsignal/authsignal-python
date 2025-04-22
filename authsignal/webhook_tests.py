@@ -19,7 +19,7 @@ class TestWebhook(unittest.TestCase):
             "tenantId": "7752d28e-e627-4b1b-bb81-b45d68d617bc",
             "type": "email.created",
             "data": {
-                "to": "chris@authsignal.com",
+                "to": "not-a-real-email@authsignal.com",
                 "code": "157743",
                 "userId": "b9f74d36-fcfc-4efc-87f1-3664ab5a7fb0",
                 "actionCode": "accountRecovery",

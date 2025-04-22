@@ -9,7 +9,7 @@ from .webhook import Webhook, InvalidSignatureError
 
 class TestWebhook(unittest.TestCase):
     def setUp(self):
-        self.secret = "YOUR_AUTHISGNAL_SECRET_KEY" 
+        self.secret = "YOUR_AUTHSIGNAL_SECRET_KEY" 
         self.webhook = Webhook(self.secret)
         self.payload_valid_signature = json.dumps({
             "version": 1,
@@ -35,7 +35,7 @@ class TestWebhook(unittest.TestCase):
             "tenantId": "7752d28e-e627-4b1b-bb81-b45d68d617bc",
             "type": "email.created",
             "data": {
-                "to": "chris@authsignal.com",
+                "to": "not-a-real-email@authsignal.com",
                 "code": "718190",
                 "userId": "b9f74d36-fcfc-4efc-87f1-3664ab5a7fb0",
                 "actionCode": "accountRecovery",

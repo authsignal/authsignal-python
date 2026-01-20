@@ -371,7 +371,6 @@ class TestAuthsignalClient(unittest.TestCase):
             api_url=self.test_config["api_url"],
         )
 
-        # First create a user to query
         client.update_user(
             user_id="query-test-user",
             attributes={
@@ -380,7 +379,6 @@ class TestAuthsignalClient(unittest.TestCase):
             },
         )
 
-        # Query by email (at least one of username, email, or phoneNumber is required)
         query_by_email_response = client.query_users(email="query-test@authsignal.com")
         self.assertIsNotNone(query_by_email_response.get("users"))
         self.assertIsInstance(query_by_email_response["users"], list)

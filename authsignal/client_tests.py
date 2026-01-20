@@ -1,6 +1,164 @@
 import os
 import unittest
+from unittest.mock import patch, MagicMock
 from .client import AuthsignalClient, ApiException
+
+
+class TestQueryUsersUnit(unittest.TestCase):
+    """Unit tests for query_users that don't require API credentials."""
+
+    def setUp(self):
+        self.client = AuthsignalClient(
+            api_secret_key="test-secret",
+            api_url="https://api.test.authsignal.com/v1",
+        )
+
+    @patch.object(AuthsignalClient, '__init__', lambda self, **kwargs: None)
+    def test_query_users_builds_correct_url_with_email(self):
+        """Test that query_users builds correct URL with email parameter."""
+        client = AuthsignalClient()
+        client.api_url = "https://api.test.authsignal.com/v1"
+        client.session = MagicMock()
+        
+        mock_response = MagicMock()
+        mock_response.decamelized_content = {
+            "users": [{"user_id": "user-1", "email": "test@example.com"}],
+            "last_evaluated_user_id": "user-1"
+        }
+        client.session.get.return_value = mock_response
+        
+        result = client.query_users(email="test@example.com")
+        
+        client.session.get.assert_called_once()
+        call_args = client.session.get.call_args
+        self.assertIn("email=test%40example.com", call_args.kwargs["url"])
+        self.assertEqual(result["users"][0]["email"], "test@example.com")
+
+    @patch.object(AuthsignalClient, '__init__', lambda self, **kwargs: None)
+    def test_query_users_builds_correct_url_with_all_params(self):
+        """Test that query_users builds correct URL with all parameters."""
+        client = AuthsignalClient()
+        client.api_url = "https://api.test.authsignal.com/v1"
+        client.session = MagicMock()
+        
+        mock_response = MagicMock()
+        mock_response.decamelized_content = {"users": []}
+        client.session.get.return_value = mock_response
+        
+        client.query_users(
+            username="testuser",
+            email="test@example.com",
+            phone_number="+1234567890",
+            token="some-token",
+            limit=10,
+            last_evaluated_user_id="prev-user-id"
+        )
+        
+        call_args = client.session.get.call_args
+        url = call_args.kwargs["url"]
+        
+        self.assertIn("username=testuser", url)
+        self.assertIn("email=test%40example.com", url)
+        self.assertIn("phoneNumber=%2B1234567890", url)
+        self.assertIn("token=some-token", url)
+        self.assertIn("limit=10", url)
+        self.assertIn("lastEvaluatedUserId=prev-user-id", url)
+
+    @patch.object(AuthsignalClient, '__init__', lambda self, **kwargs: None)
+    def test_query_users_no_params_no_query_string(self):
+        """Test that query_users with no params doesn't add query string."""
+        client = AuthsignalClient()
+        client.api_url = "https://api.test.authsignal.com/v1"
+        client.session = MagicMock()
+        
+        mock_response = MagicMock()
+        mock_response.decamelized_content = {"users": []}
+        client.session.get.return_value = mock_response
+        
+        client.query_users()
+        
+        call_args = client.session.get.call_args
+        url = call_args.kwargs["url"]
+        
+        self.assertEqual(url, "https://api.test.authsignal.com/v1/users")
+        self.assertNotIn("?", url)
+
+    @patch.object(AuthsignalClient, '__init__', lambda self, **kwargs: None)
+    def test_query_users_returns_decamelized_response(self):
+        """Test that query_users returns properly decamelized response."""
+        client = AuthsignalClient()
+        client.api_url = "https://api.test.authsignal.com/v1"
+        client.session = MagicMock()
+        
+        mock_response = MagicMock()
+        mock_response.decamelized_content = {
+            "users": [
+                {
+                    "user_id": "user-1",
+                    "email": "test@example.com",
+                    "email_verified": True,
+                    "phone_number": "+1234567890",
+                    "phone_number_verified": False,
+                    "username": "testuser"
+                }
+            ],
+            "last_evaluated_user_id": "user-1",
+            "token_payload": {"sub": "user-1"}
+        }
+        client.session.get.return_value = mock_response
+        
+        result = client.query_users(email="test@example.com")
+        
+        self.assertIn("users", result)
+        self.assertEqual(len(result["users"]), 1)
+        self.assertEqual(result["users"][0]["user_id"], "user-1")
+        self.assertEqual(result["users"][0]["email_verified"], True)
+        self.assertEqual(result["users"][0]["phone_number_verified"], False)
+        self.assertEqual(result["last_evaluated_user_id"], "user-1")
+        self.assertIn("token_payload", result)
+
+    @patch.object(AuthsignalClient, '__init__', lambda self, **kwargs: None)
+    def test_query_users_with_pagination(self):
+        """Test that query_users correctly handles pagination parameters."""
+        client = AuthsignalClient()
+        client.api_url = "https://api.test.authsignal.com/v1"
+        client.session = MagicMock()
+        
+        mock_response = MagicMock()
+        mock_response.decamelized_content = {
+            "users": [{"user_id": "user-2"}],
+            "last_evaluated_user_id": "user-2"
+        }
+        client.session.get.return_value = mock_response
+        
+        result = client.query_users(
+            email="test@example.com",
+            limit=5,
+            last_evaluated_user_id="user-1"
+        )
+        
+        call_args = client.session.get.call_args
+        url = call_args.kwargs["url"]
+        
+        self.assertIn("limit=5", url)
+        self.assertIn("lastEvaluatedUserId=user-1", url)
+        self.assertEqual(result["last_evaluated_user_id"], "user-2")
+
+    @patch.object(AuthsignalClient, '__init__', lambda self, **kwargs: None)
+    def test_query_users_empty_result(self):
+        """Test that query_users handles empty results correctly."""
+        client = AuthsignalClient()
+        client.api_url = "https://api.test.authsignal.com/v1"
+        client.session = MagicMock()
+        
+        mock_response = MagicMock()
+        mock_response.decamelized_content = {"users": []}
+        client.session.get.return_value = mock_response
+        
+        result = client.query_users(email="nonexistent@example.com")
+        
+        self.assertIn("users", result)
+        self.assertEqual(len(result["users"]), 0)
 
 
 class TestAuthsignalClient(unittest.TestCase):
@@ -206,6 +364,31 @@ class TestAuthsignalClient(unittest.TestCase):
         get_user_response = client.get_user(user_id="a-new-user")
         self.assertIsNotNone(get_user_response.get("is_enrolled"))
         self.assertFalse(get_user_response["is_enrolled"])
+
+    def test_query_users(self):
+        client = AuthsignalClient(
+            api_secret_key=self.test_config["api_secret_key"],
+            api_url=self.test_config["api_url"],
+        )
+
+        client.update_user(
+            user_id="query-test-user",
+            attributes={
+                "email": "query-test@authsignal.com",
+                "displayName": "Query Test User",
+            },
+        )
+
+        query_by_email_response = client.query_users(email="query-test@authsignal.com")
+        self.assertIsNotNone(query_by_email_response.get("users"))
+        self.assertIsInstance(query_by_email_response["users"], list)
+        self.assertTrue(len(query_by_email_response["users"]) > 0)
+        self.assertEqual(
+            query_by_email_response["users"][0]["email"], "query-test@authsignal.com"
+        )
+
+        # Clean up
+        client.delete_user(user_id="query-test-user")
 
     def test_get_action_with_bad_secret(self):
         client = AuthsignalClient(

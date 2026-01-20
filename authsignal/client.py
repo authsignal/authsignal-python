@@ -181,6 +181,48 @@ class AuthsignalClient(object):
 
         return
 
+    def query_users(
+        self,
+        username: str = None,
+        email: str = None,
+        phone_number: str = None,
+        token: str = None,
+        limit: int = None,
+        last_evaluated_user_id: str = None,
+    ) -> Dict[str, Any]:
+        """Queries users from authsignal with optional filters
+        Args:
+            username: Filter by username. Optional.
+            email: Filter by email. Optional.
+            phone_number: Filter by phone number. Optional.
+            token: Filter by token. Optional.
+            limit: Maximum number of users to return. Optional.
+            last_evaluated_user_id: For pagination, the last userId from previous response. Optional.
+        Returns:
+            A dictionary containing 'users' array and optional 'lastEvaluatedUserId' for pagination.
+        """
+        params = {}
+
+        if username is not None:
+            params["username"] = username
+        if email is not None:
+            params["email"] = email
+        if phone_number is not None:
+            params["phoneNumber"] = phone_number
+        if token is not None:
+            params["token"] = token
+        if limit is not None:
+            params["limit"] = str(limit)
+        if last_evaluated_user_id is not None:
+            params["lastEvaluatedUserId"] = last_evaluated_user_id
+
+        query_string = urllib.parse.urlencode(params) if params else ""
+        path = f"{self.api_url}/users" + (f"?{query_string}" if query_string else "")
+
+        response = self.session.get(url=path)
+
+        return response.decamelized_content
+
     def get_authenticators(self, user_id: str) -> Dict[str, Any]:
         """Retrieves the authenticators for a user
         Args:

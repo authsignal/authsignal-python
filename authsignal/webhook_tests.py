@@ -9,7 +9,7 @@ from .webhook import Webhook, InvalidSignatureError
 
 class TestWebhook(unittest.TestCase):
     def setUp(self):
-        self.secret = "YOUR_AUTHSIGNAL_SECRET_KEY" 
+        self.secret = "YOUR_AUTHSIGNAL_SECRET_KEY"
         self.webhook = Webhook(self.secret)
         self.payload_valid_signature = json.dumps({
             "version": 1,
@@ -89,13 +89,10 @@ class TestWebhook(unittest.TestCase):
         self.assertEqual(event["data"]["actionCode"], "accountRecovery")
 
     def test_valid_signature_multiple_keys(self):
-
         payload = self.payload_multiple_keys
         timestamp = 1740016037
 
         valid_signature = self.generate_signature(payload, timestamp=timestamp, secret=self.secret).split(",")[1]
-        
-
         signature = f"t={timestamp},{valid_signature},v2=dummyInvalidSignature"
 
         event = self.webhook.construct_event(payload, signature, tolerance=-1)
@@ -103,5 +100,56 @@ class TestWebhook(unittest.TestCase):
         self.assertEqual(event["version"], 1)
         self.assertEqual(event["data"]["actionCode"], "accountRecovery")
 
+    def test_event_with_custom_variables(self):
+        payload = json.dumps({
+            "version": 1,
+            "id": "bc1598bc-e5d6-4c69-9afb-1a6fe3469d6e",
+            "source": "https://authsignal.com",
+            "time": "2025-02-20T01:51:56.070Z",
+            "tenantId": "7752d28e-e627-4b1b-bb81-b45d68d617bc",
+            "type": "sms.created",
+            "data": {
+                "actionCode": "smsVerify",
+                "customVariables": {
+                    "action_journeyType": "ForgotChangePassword",
+                    "retryCount": 2,
+                    "isRecovery": True,
+                    "channels": ["sms", "email"],
+                },
+            },
+        })
+
+        event = self.webhook.construct_event(payload, self.generate_signature(payload))
+
+        custom_variables = event["data"]["customVariables"]
+        self.assertEqual(custom_variables["action_journeyType"], "ForgotChangePassword")
+        self.assertEqual(custom_variables["retryCount"], 2)
+        self.assertTrue(custom_variables["isRecovery"])
+        self.assertEqual(custom_variables["channels"], ["sms", "email"])
+
+    def test_log_event_batch(self):
+        payload = json.dumps({
+            "records": [{
+                "version": 1,
+                "id": "bc1598bc-e5d6-4c69-9afb-1a6fe3469d6e",
+                "source": "https://authsignal.com",
+                "time": "2025-02-20T01:51:56.070Z",
+                "tenantId": "7752d28e-e627-4b1b-bb81-b45d68d617bc",
+                "type": "action.log_created",
+                "record": {
+                    "userId": "b9f74d36-fcfc-4efc-87f1-3664ab5a7fb0",
+                    "customVariables": {"journeyType": "accountRecovery"},
+                },
+            }],
+        })
+
+        batch = self.webhook.construct_event(payload, self.generate_signature(payload))
+
+        self.assertEqual(len(batch["records"]), 1)
+        self.assertEqual(
+            batch["records"][0]["record"]["customVariables"]["journeyType"],
+            "accountRecovery",
+        )
+
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()

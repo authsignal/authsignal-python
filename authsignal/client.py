@@ -1,6 +1,10 @@
 import decimal
 import json
+import random
+import re
+import time
 import urllib.parse
+from email.utils import parsedate_to_datetime
 from enum import Enum
 from typing import Dict, Any
 
@@ -12,6 +16,9 @@ from authsignal.version import VERSION
 from authsignal.webhook import Webhook
 
 API_BASE_URL = "https://api.authsignal.com/v1"
+DEFAULT_RETRIES = 2
+DEFAULT_CONNECT_TIMEOUT = 3.0
+DEFAULT_TIMEOUT = 10.0
 
 
 class ActionState(Enum):
@@ -33,12 +40,13 @@ class DecimalEncoder(json.JSONEncoder):
 
 
 class CustomSession(requests.Session):
-    def __init__(self, timeout, api_key):
+    def __init__(self, timeout, connect_timeout, retries, api_key):
         super().__init__()
         self.mount("http://", HTTPAdapter())
         self.mount("https://", HTTPAdapter())
 
-        self.timeout = timeout
+        self.timeout = (connect_timeout, timeout)
+        self.retries = retries
         self.auth = requests.auth.HTTPBasicAuth(api_key, "")
         self.headers.update(
             {
@@ -68,42 +76,114 @@ class CustomSession(requests.Session):
 
     def send(self, request, **kwargs) -> requests.Response:
         kwargs.setdefault("timeout", self.timeout)
-        try:
-            response = super().send(request, **kwargs)
-            response.raise_for_status()
+        retry_count = 0
 
-            if response.headers.get("Content-Type") == "application/json":
-                data = response.json()
-                decamelized_content = humps.decamelize(data)
-                response.decamelized_content = decamelized_content
-            return response
-        except requests.exceptions.RequestException as e:
-            error_code = None
-            error_description = None
-            status_code = None
+        while True:
+            try:
+                response = super().send(request, **kwargs)
+                if self._should_retry(request, retry_count, response=response):
+                    delay = self._retry_delay(retry_count, response)
+                    response.close()
+                    time.sleep(delay)
+                    retry_count += 1
+                    continue
 
-            if isinstance(e, requests.exceptions.HTTPError):
-                status_code = e.response.status_code
+                response.raise_for_status()
+
+                if response.headers.get("Content-Type") == "application/json":
+                    data = response.json()
+                    response.decamelized_content = humps.decamelize(data)
+                return response
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                if self._should_retry(request, retry_count, error=e):
+                    time.sleep(self._retry_delay(retry_count))
+                    retry_count += 1
+                    continue
+                self._raise_api_exception(e)
+            except requests.exceptions.RequestException as e:
+                self._raise_api_exception(e)
+
+    def _is_replayable(self, request) -> bool:
+        if request.method.upper() in ("GET", "HEAD", "OPTIONS"):
+            return True
+
+        body = request.body.decode() if isinstance(request.body, bytes) else request.body
+        if body:
+            try:
+                data = json.loads(body)
+                if isinstance(data, dict) and (data.get("idempotencyKey") or data.get("idempotency_key")):
+                    return True
+            except (TypeError, ValueError):
+                pass
+
+        return request.method.upper() == "PATCH" and re.search(
+            r"/actions/[^/]+/[^/]+$", urllib.parse.urlparse(request.url).path
+        ) is not None
+
+    def _should_retry(self, request, retry_count, response=None, error=None) -> bool:
+        if retry_count >= self.retries or not self._is_replayable(request):
+            return False
+        if error is not None:
+            return True
+        return response.status_code == 429 or 500 <= response.status_code <= 599
+
+    @staticmethod
+    def _retry_delay(retry_count, response=None) -> float:
+        base_delay = 0.1 * (2 ** retry_count)
+        delay = base_delay + random.uniform(0, base_delay * 0.2)
+        if response is not None and response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
                 try:
-                    error_data = e.response.json()
-                    error_code = error_data.get("errorCode")
-                    error_description = error_data.get("errorDescription")
-                except (ValueError, AttributeError):
-                    pass
+                    retry_after_delay = float(retry_after)
+                except ValueError:
+                    try:
+                        retry_after_delay = max(
+                            0.0, parsedate_to_datetime(retry_after).timestamp() - time.time()
+                        )
+                    except (TypeError, ValueError, OverflowError):
+                        retry_after_delay = 0.0
+                delay = max(delay, retry_after_delay)
+        return delay
 
-            raise ApiException(error_code, error_description, status_code) from e
+    @staticmethod
+    def _raise_api_exception(error):
+        error_code = None
+        error_description = None
+        status_code = None
+
+        if isinstance(error, requests.exceptions.HTTPError):
+            status_code = error.response.status_code
+            try:
+                error_data = error.response.json()
+                error_code = error_data.get("errorCode")
+                error_description = error_data.get("errorDescription")
+            except (ValueError, AttributeError):
+                pass
+
+        raise ApiException(error_code, error_description, status_code) from error
 
 
 class AuthsignalClient(object):
 
-    def __init__(self, api_secret_key, api_url=API_BASE_URL, timeout=2.0):
+    def __init__(
+        self,
+        api_secret_key,
+        api_url=API_BASE_URL,
+        timeout=DEFAULT_TIMEOUT,
+        connect_timeout=DEFAULT_CONNECT_TIMEOUT,
+        retries=DEFAULT_RETRIES,
+    ):
         """Initialize the client.
         Args:
             api_secret_key: Your Authsignal Secret API key of your tenant
             api_url: Base URL, including scheme and host, for sending events.
                 Defaults to 'https://api.authsignal.com/v1'.
-            timeout: Number of seconds to wait before failing request. Defaults
-                to 2 seconds.
+            timeout: Number of seconds to wait while reading a response. Defaults
+                to 10 seconds.
+            connect_timeout: Number of seconds to wait while connecting. Defaults
+                to 3 seconds.
+            retries: Number of retries after the initial request. Defaults to 2.
         """
         _assert_non_empty_string(api_url, "api_url")
         _assert_non_empty_string(api_secret_key, "api_secret_key")
@@ -111,7 +191,12 @@ class AuthsignalClient(object):
         self.api_secret_key = api_secret_key
         self.api_url = api_url
 
-        self.session = CustomSession(timeout=timeout, api_key=api_secret_key)
+        self.session = CustomSession(
+            timeout=timeout,
+            connect_timeout=connect_timeout,
+            retries=retries,
+            api_key=api_secret_key,
+        )
         self.version = VERSION
         self.webhook = Webhook(api_secret_key=api_secret_key)
 

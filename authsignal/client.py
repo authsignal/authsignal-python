@@ -86,7 +86,7 @@ class CustomSession(requests.Session):
                 status_code = e.response.status_code
                 try:
                     error_data = e.response.json()
-                    error_code = error_data.get("errorCode")
+                    error_code = error_data.get("errorCode") or error_data.get("error")
                     error_description = error_data.get("errorDescription")
                 except (ValueError, AttributeError):
                     pass
@@ -114,6 +114,41 @@ class AuthsignalClient(object):
         self.session = CustomSession(timeout=timeout, api_key=api_secret_key)
         self.version = VERSION
         self.webhook = Webhook(api_secret_key=api_secret_key)
+
+    def start_flow(
+        self,
+        action_code: str,
+        user: Dict[str, Any] = None,
+        attributes: Dict[str, Any] = None,
+        redirect_url: str = None,
+        client_id: str = None,
+    ) -> Dict[str, Any]:
+        """Start a flow. Nested user/attributes dictionaries use API camelCase keys."""
+        _assert_non_empty_string(action_code, "action_code")
+        body = {
+            "actionCode": action_code,
+            "user": user,
+            "attributes": attributes,
+            "redirectUrl": redirect_url,
+            "clientId": client_id,
+        }
+        response = self.session.post(
+            self.api_url.rstrip("/") + "/flows",
+            json={k: v for k, v in body.items() if v is not None},
+            timeout=self.session.timeout,
+        )
+        return humps.decamelize(response.json())
+
+    def verify_flow(self, action_code: str, challenge_token: str) -> Dict[str, Any]:
+        """Verify a flow and retrieve its action, user and optional session."""
+        _assert_non_empty_string(action_code, "action_code")
+        _assert_non_empty_string(challenge_token, "challenge_token")
+        response = self.session.post(
+            self.api_url.rstrip("/") + "/flows/verify",
+            json={"actionCode": action_code, "challengeToken": challenge_token},
+            timeout=self.session.timeout,
+        )
+        return humps.decamelize(response.json())
 
     def track(
         self, user_id: str, action: str, attributes: Dict[str, Any] = None

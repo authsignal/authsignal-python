@@ -201,8 +201,7 @@ class AuthsignalClient(object):
                 "X-Authsignal-Challenge-Token": flow["challenge_token"],
                 "Origin": origin,
             },
-            # Client endpoints authenticate with the challenge token, so the secret key is not sent.
-            auth=lambda request: request,
+            auth=_without_secret_key,
             timeout=self.session.timeout,
         )
 
@@ -455,6 +454,10 @@ class ApiException(Exception):
 def _assert_non_empty_string(val: str, name: str) -> None:
     if not isinstance(val, str) or not val:
         raise ValueError(f"{name} must be a non-empty string")
+
+
+def _without_secret_key(request):
+    return request
 
 
 def _select_preset_option_id(preset_options: list, option_id: str = None) -> str:

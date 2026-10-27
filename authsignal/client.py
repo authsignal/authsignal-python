@@ -150,6 +150,80 @@ class AuthsignalClient(object):
         )
         return humps.decamelize(response.json())
 
+    def start_digital_credential_request(
+        self,
+        action_code: str,
+        origin: str,
+        option_id: str = None,
+        user: Dict[str, Any] = None,
+        attributes: Dict[str, Any] = None,
+        client_id: str = None,
+    ) -> Dict[str, Any]:
+        """Start a flow whose next step is a digital credential request and create
+        a Digital Credentials API request for it.
+        Args:
+            action_code: The action code of a flow whose next step is a digital credential request.
+            origin: The origin of the page or app that will call the Digital Credentials API.
+                Must be one of the tenant's expected origins.
+            option_id: The request preset option to request. Optional when the preset has one option.
+            user: User lookup, e.g. {"userId": "..."}. Optional.
+            attributes: Challenge attributes. Optional.
+            client_id: App client ID. Optional.
+        Returns:
+            A dictionary containing the flow's challenge_id and challenge_token, the request_id,
+            and dc_api.requests to pass unchanged to the Digital Credentials API.
+        """
+        _assert_non_empty_string(action_code, "action_code")
+        _assert_non_empty_string(origin, "origin")
+
+        flow = self.start_flow(
+            action_code, user=user, attributes=attributes, client_id=client_id
+        )
+
+        next_step = flow.get("action", {}).get("next_step") or {}
+
+        if next_step.get("step_type") != "DIGITAL_CREDENTIAL_REQUEST":
+            raise ValueError(
+                f"The next step of flow '{action_code}' is not a digital credential request"
+            )
+
+        if "DC_API" not in next_step.get("allowed_transports", []):
+            raise ValueError(
+                f"The digital credential request in flow '{action_code}' does not allow the DC_API transport"
+            )
+
+        option_id = _select_preset_option_id(next_step.get("preset_options") or [], option_id)
+
+        response = self.session.post(
+            self.api_url.rstrip("/") + "/client/flows/challenge/digital-credential",
+            json={"transport": "DC_API", "optionId": option_id},
+            headers={
+                "X-Authsignal-Challenge-Token": flow["challenge_token"],
+                "Origin": origin,
+            },
+            # Client endpoints authenticate with the challenge token, so the secret key is not sent.
+            auth=lambda request: request,
+            timeout=self.session.timeout,
+        )
+
+        data = response.json()
+
+        # The requests go to the wallet as-is, so their keys must keep the API's casing.
+        dc_api = data.pop("dcApi", None)
+
+        if not dc_api or not dc_api.get("requests"):
+            raise ValueError(
+                f"No Digital Credentials API requests were created (state: {data.get('state')})"
+            )
+
+        return {
+            **humps.decamelize(data),
+            "challenge_id": flow["challenge_id"],
+            "challenge_token": flow["challenge_token"],
+            "option_id": option_id,
+            "dc_api": dc_api,
+        }
+
     def track(
         self, user_id: str, action: str, attributes: Dict[str, Any] = None
     ) -> Dict[str, Any]:
@@ -381,6 +455,22 @@ class ApiException(Exception):
 def _assert_non_empty_string(val: str, name: str) -> None:
     if not isinstance(val, str) or not val:
         raise ValueError(f"{name} must be a non-empty string")
+
+
+def _select_preset_option_id(preset_options: list, option_id: str = None) -> str:
+    option_ids = [o["option_id"] for o in preset_options]
+
+    if option_id is not None:
+        if option_id not in option_ids:
+            raise ValueError(f"option_id '{option_id}' is not one of {option_ids}")
+        return option_id
+
+    if len(option_ids) != 1:
+        raise ValueError(
+            f"option_id is required when the request preset has {len(option_ids)} options: {option_ids}"
+        )
+
+    return option_ids[0]
 
 
 def _assert_non_empty_dict(val: dict, name: str) -> None:

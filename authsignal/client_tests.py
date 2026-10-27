@@ -1,6 +1,10 @@
+import json
 import os
 import unittest
 from unittest.mock import patch, MagicMock
+
+import responses
+
 from .client import AuthsignalClient, ApiException
 
 
@@ -159,6 +163,145 @@ class TestQueryUsersUnit(unittest.TestCase):
         
         self.assertIn("users", result)
         self.assertEqual(len(result["users"]), 0)
+
+
+class TestStartDigitalCredentialRequestUnit(unittest.TestCase):
+    """Unit tests for start_digital_credential_request that don't require API credentials."""
+
+    API_URL = "https://api.test.authsignal.com/v1"
+    ORIGIN = "https://demo.example.com"
+
+    DC_API_REQUESTS = [
+        {"protocol": "org-iso-mdoc", "data": {"deviceRequest": "abc", "encryptionInfo": "def"}},
+        {"protocol": "openid4vp-v1-signed", "data": {"request": "eyJhbGciOiJFUzI1NiJ9.e30.sig"}},
+    ]
+
+    def setUp(self):
+        self.client = AuthsignalClient(api_secret_key="test-secret", api_url=self.API_URL)
+
+    def _mock_start_flow(self, next_step):
+        responses.add(
+            responses.POST,
+            f"{self.API_URL}/flows",
+            json={
+                "action": {"state": "CHALLENGE_REQUIRED", "nextStep": next_step},
+                "challengeId": "challenge-1",
+                "challengeToken": "token-1",
+                "challengeUrl": "https://mfa.example.com",
+                "user": {"userId": "user-1"},
+            },
+        )
+
+    def _mock_dc_challenge(self):
+        responses.add(
+            responses.POST,
+            f"{self.API_URL}/client/flows/challenge/digital-credential",
+            json={
+                "requestId": "request-1",
+                "dcApi": {"requests": self.DC_API_REQUESTS},
+                "sessionExpiresAt": 1700000000,
+                "state": "AWAITING_RESPONSE",
+            },
+        )
+
+    @staticmethod
+    def _dc_step(preset_options, allowed_transports=("DC_API",)):
+        return {
+            "stepType": "DIGITAL_CREDENTIAL_REQUEST",
+            "verificationMethods": ["DIGITAL_CREDENTIAL"],
+            "presetOptions": preset_options,
+            "allowedTransports": list(allowed_transports),
+            "credentialSelection": "CLIENT",
+        }
+
+    @responses.activate
+    def test_uses_only_option_and_returns_wallet_requests(self):
+        self._mock_start_flow(
+            self._dc_step([{"optionId": "mdl", "name": "mDL", "docTypes": ["org.iso.18013.5.1.mDL"]}])
+        )
+        self._mock_dc_challenge()
+
+        result = self.client.start_digital_credential_request("verifyAge", origin=self.ORIGIN)
+
+        self.assertEqual(len(responses.calls), 2)
+        dc_call = responses.calls[1].request
+        self.assertEqual(json.loads(dc_call.body), {"transport": "DC_API", "optionId": "mdl"})
+        self.assertEqual(dc_call.headers["X-Authsignal-Challenge-Token"], "token-1")
+        self.assertEqual(dc_call.headers["Origin"], self.ORIGIN)
+        self.assertNotIn("Authorization", dc_call.headers)
+        self.assertIn("Authorization", responses.calls[0].request.headers)
+
+        self.assertEqual(result["challenge_id"], "challenge-1")
+        self.assertEqual(result["challenge_token"], "token-1")
+        self.assertEqual(result["request_id"], "request-1")
+        self.assertEqual(result["option_id"], "mdl")
+        self.assertEqual(result["state"], "AWAITING_RESPONSE")
+        self.assertEqual(result["dc_api"], {"requests": self.DC_API_REQUESTS})
+
+    @responses.activate
+    def test_uses_given_option_id(self):
+        self._mock_start_flow(
+            self._dc_step([
+                {"optionId": "mdl", "name": "mDL", "docTypes": []},
+                {"optionId": "pid", "name": "PID", "docTypes": []},
+            ])
+        )
+        self._mock_dc_challenge()
+
+        result = self.client.start_digital_credential_request(
+            "verifyAge", origin=self.ORIGIN, option_id="pid"
+        )
+
+        self.assertEqual(json.loads(responses.calls[1].request.body)["optionId"], "pid")
+        self.assertEqual(result["option_id"], "pid")
+
+    @responses.activate
+    def test_requires_option_id_when_several_options(self):
+        self._mock_start_flow(
+            self._dc_step([
+                {"optionId": "mdl", "name": "mDL", "docTypes": []},
+                {"optionId": "pid", "name": "PID", "docTypes": []},
+            ])
+        )
+
+        with self.assertRaises(ValueError):
+            self.client.start_digital_credential_request("verifyAge", origin=self.ORIGIN)
+
+        self.assertEqual(len(responses.calls), 1)
+
+    @responses.activate
+    def test_rejects_unknown_option_id(self):
+        self._mock_start_flow(self._dc_step([{"optionId": "mdl", "name": "mDL", "docTypes": []}]))
+
+        with self.assertRaises(ValueError):
+            self.client.start_digital_credential_request(
+                "verifyAge", origin=self.ORIGIN, option_id="pid"
+            )
+
+        self.assertEqual(len(responses.calls), 1)
+
+    @responses.activate
+    def test_rejects_flow_without_digital_credential_step(self):
+        self._mock_start_flow({"stepType": "VERIFICATION_REQUIRED", "verificationMethods": ["SMS"]})
+
+        with self.assertRaises(ValueError):
+            self.client.start_digital_credential_request("verifyAge", origin=self.ORIGIN)
+
+        self.assertEqual(len(responses.calls), 1)
+
+    @responses.activate
+    def test_rejects_step_without_dc_api_transport(self):
+        self._mock_start_flow(
+            self._dc_step(
+                [{"optionId": "mdl", "name": "mDL", "docTypes": []}],
+                allowed_transports=["SAME_DEVICE", "CROSS_DEVICE"],
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            self.client.start_digital_credential_request("verifyAge", origin=self.ORIGIN)
+
+        self.assertEqual(len(responses.calls), 1)
 
 
 class TestAuthsignalClient(unittest.TestCase):

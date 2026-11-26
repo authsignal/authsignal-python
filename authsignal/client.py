@@ -96,14 +96,14 @@ class CustomSession(requests.Session):
 
 class AuthsignalClient(object):
 
-    def __init__(self, api_secret_key, api_url=API_BASE_URL, timeout=2.0):
+    def __init__(self, api_secret_key, api_url=API_BASE_URL, timeout=10.0):
         """Initialize the client.
         Args:
             api_secret_key: Your Authsignal Secret API key of your tenant
             api_url: Base URL, including scheme and host, for sending events.
                 Defaults to 'https://api.authsignal.com/v1'.
             timeout: Number of seconds to wait before failing request. Defaults
-                to 2 seconds.
+                to 10 seconds.
         """
         _assert_non_empty_string(api_url, "api_url")
         _assert_non_empty_string(api_secret_key, "api_secret_key")
